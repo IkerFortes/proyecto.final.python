@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 💳 Sistema de Gestión de Carteras y Tarjetas (SQLAlchemy 2026)
 
 Este proyecto implementa una arquitectura modular y robusta para la gestión de usuarios, carteras digitales, tarjetas de débito y transacciones financieras, utilizando **Python** y **SQLAlchemy ORM**.
@@ -49,3 +50,7 @@ El diseño incluye integridad referencial y borrado en cascada:
 
 ---
 *Proyecto desarrollado con estándares de persistencia de datos 2026.*
+=======
+# python.proyecto
+Proyecto de fin de curso
+>>>>>>> 656cb965ce586c81152e7b0f34dd8c6b4ad940fd

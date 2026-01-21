@@ -18,9 +18,9 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 
 # --- SOLUCIÓN AL ERROR: Crear tablas dentro del contexto de la app ---
-with app.app_context():
+# with app.app_context():
     # Esto ahora funcionará porque tiene el contexto de la aplicación activo
-    db.create_all()
+    # db.create_all()
 
 
 

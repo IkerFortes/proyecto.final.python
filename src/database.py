@@ -8,8 +8,9 @@ db = SQLAlchemy()
 
 # Define la ruta de la base de datos para que main.py pueda importarla
 # Asegúrate de que esta ruta coincida con la que usarás en app.py si es diferente
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "proyecto.db")
+DB_PATH = "proyecto.db"
 
 # Crea el motor de SQLAlchemy manualmente para que main.py pueda usarlo
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
+
 engine = create_engine(DATABASE_URL)
