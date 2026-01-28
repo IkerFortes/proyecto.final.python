@@ -1,0 +1,12 @@
+<h1>Saldo: {{ monedero.saldo }} monedas</h1>
+
+<h2>Movimientos</h2>
+<ul>
+  {% for m in monedero.movimientos %}
+    <li>
+      {{ m.fecha.strftime("%d/%m/%Y %H:%M") }} -
+      {{ m.descripcion }} :
+      {{ m.cantidad }}
+    </li>
+  {% endfor %}
+</ul>

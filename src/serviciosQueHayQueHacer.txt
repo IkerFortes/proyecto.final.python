@@ -1,0 +1,54 @@
+
+IMPORTANTE TENER EN CUENTA LA BASE DE DATOS
+
+# 1. Gestión de Usuarios y Seguridad
+    # crear_usuario(datos): Registra al usuario y, obligatoriamente, crea su Cartera con saldo 0 en la misma transacción.
+      # autenticar_usuario(usuario, password): Verifica las credenciales para el inicio de sesión.
+    # obtener_perfil_completo(usuario_id): Retorna los datos del usuario, su saldo actual y sus tarjetas registradas.
+
+# 2. Gestión de Tarjetas
+    # registrar_tarjeta(usuario_id, datos_tarjeta): Valida y guarda una tarjeta vinculada al usuario.
+    # eliminar_tarjeta(tarjeta_id, usuario_id): Elimina una tarjeta (asegurando que pertenezca al usuario).
+    # listar_tarjetas(usuario_id): Recupera todas las tarjetas guardadas por un usuario.
+
+# 3. Operaciones de Cartera (Monedero)
+    # recargar_monedero(usuario_id, tarjeta_id, cantidad):
+      # Suma la cantidad al saldo en la tabla CARTERAS.
+      # Crea un registro en la tabla RECARGAS para el historial.
+    # consultar_saldo(usuario_id): Retorna el flotante disponible en la cartera del usuario.
+
+# 4. Transacciones entre Usuarios
+    # transferir_dinero(id_cartera_origen, gmail_destino, cantidad):
+      # Validación: Comprobar si la cartera origen tiene saldo suficiente.
+      # Búsqueda: Localizar la cartera destino mediante el gmail o usuario.
+      # Atomicidad: Restar al origen, sumar al destino y crear el registro en TRANSACCIONES (todo dentro de un db.session.commit()).
+
+# 5. Consultas e Historiales
+    # obtener_historial_recargas(usuario_id): Lista todas las veces que el usuario metió dinero desde sus tarjetas.
+    # obtener_historial_transacciones(usuario_id): Lista movimientos enviados y recibidos (puedes unificar transacciones_enviadas y transacciones_recibidas).
+
+
+-------------------------------------------------- ESTO ES PARA LAS SESIONES --------------------------------------------------
+1. Funciones de Control de Acceso
+  login_usuario(nombre_usuario, password):
+    Busca al usuario en la base de datos por su nombre o email.
+    Utiliza werkzeug.security.check_password_hash para comparar la contraseña ingresada con el hash guardado.
+    Si es correcto, inicia la sesión (crea la cookie de sesión o genera el token).
+  logout_usuario():
+    Limpia la sesión activa del usuario y destruye las cookies de autenticación.
+  esta_autenticado():
+    Una función auxiliar (o decorador @login_required) para verificar si quien intenta acceder a una ruta tiene permiso.
+
+2. Funciones de Seguridad de Cuenta
+  hash_password(password_plano):
+    Función para encriptar la contraseña antes de guardarla en la base de datos durante el registro. Nunca guardes texto plano.
+  obtener_usuario_actual():
+    Recupera el objeto Usuario completo de la base de datos basándose en el ID almacenado en la sesión actual.
+  actualizar_contrasena(usuario_id, password_antiguo, nuevo_password):
+    Valida que la contraseña antigua sea correcta antes de permitir el cambio a la nueva.
+
+3. Funciones de Recuperación y Validación
+  verificar_disponibilidad(usuario, gmail):
+    Comprueba si el nombre de usuario o el correo ya están registrados antes de intentar crear una cuenta nueva.
+  generar_token_recuperacion(gmail):
+    Crea un token temporal para procesos de "olvidé mi contraseña".

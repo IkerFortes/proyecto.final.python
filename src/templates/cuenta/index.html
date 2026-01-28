@@ -1,0 +1,195 @@
+{% extends "cuenta/sidebar.html" %}
+
+{% block acount_content %}
+
+<!-- Cabecera de página -->
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+  <h1 class="h3 mb-0 text-gray-800">Análisis de Datos</h1>
+  <a href="#" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
+    <!-- IFO: CREAR REPORTE TEMPORAL... PUEDE QUE NO LLEGUEMOS A HACERLO (PRIORIZAR FUNCIONALIDADES BÁSICAS) -->
+    <i class="fas fa-download fa-sm text-white-50"></i> Generar reporte
+  </a>
+</div>
+
+<!-- Approach -->
+<div class="card shadow mb-4">
+  <div class="card-header py-3">
+    <h6 class="m-0 font-weight-bold text-primary">Resumen de cuenta</h6>
+  </div>
+  <div class="card-body">
+    <p>Hola, {{ usuario.nombre }}, este es el resumen de tus finanzas.</p>
+    <p class="mb-0">
+      Gestiona tu saldo en <strong> VirtualCoin </strong>, consulta tus últimos
+      movimientos o recarga tu cuenta al instante con tarjeta o transferencia.
+    </p>
+  </div>
+</div>
+
+<!-- Content Row -->
+<div class="row">
+  <!-- Ingresos (Mensual) -->
+  <div class="col-xl-4 col-md-6 mb-4">
+    <div class="card border-left-success shadow h-100 py-2">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+              Saldo actual
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">
+              {{usuario.cartera.cantidad}} €
+            </div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ingresos (Diario) -->
+  <div class="col-xl-4 col-md-6 mb-4">
+    <div class="card border-left-danger shadow h-100 py-2">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+              gastos de {{mes_actual}}
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">
+              <!-- IFO: QUE SAQUE DE LA BASE DE DATOS LOS INGRESOS DEL DIA EN EL QUE ESTAMOS -->
+              {{gastos_mensuales}} €
+            </div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-exclamation-circle fa-2x text-gray-300"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Solicitudes pendientes  -->
+  <div class="col-xl-4 col-md-12 mb-4">
+    <div class="card border-left-warning shadow h-100 py-2">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+              Solicitudes pendientes
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">
+              <!-- IFO: NUMERO DE SOLICITUDES DE DINERO O ALGO ASI -->
+              18
+            </div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-comments fa-2x text-gray-300"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- IFO: hecho -->
+<div class="row">
+  <!-- Gráfico de áreas -->
+  <div class="col-xl-8 col-lg-7">
+    <div class="card shadow mb-4">
+      <!-- Header - Dropdown -->
+      <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Evolución del Saldo</h6>
+
+        <!-- IFO: TREMENDO DESPLEGABLE. DEPENDIENDO DE LO QUE SE ESCOJA AQUI EL GRAFICO SERA DE UN TAMAÑO U OTRO -->
+        <div class="dropdown no-arrow">
+          <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown"
+            aria-haspopup="true" aria-expanded="false">
+            <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+          </a>
+          <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" aria-labelledby="dropdownMenuLink">
+            <div class="dropdown-header">Rango de tiempo:</div>
+            <!-- href="javascript:void(0)" evita que la página suba al inicio al hacer click -->
+            <a class="dropdown-item" href="javascript:void(0)" onclick="actualizarGrafico('semanal')">Semanal</a>
+            <a class="dropdown-item" href="javascript:void(0)" onclick="actualizarGrafico('mensual')">Mensual</a>
+            <a class="dropdown-item" href="javascript:void(0)" onclick="actualizarGrafico('anual')">Anual</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card Body -->
+      <div class="card-body">
+        <div class="chart-area" style="position: relative">
+          <!-- Mensaje que se mostrará si no hay datos -->
+          <div id="no-data-message" style="
+              display: none;
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              text-align: center;
+            ">
+            <i class="fas fa-piggy-bank fa-3x text-black-200 mb-3"></i>
+            <p class="text-black-500">
+              Todavía no has hecho ningun movimiento.
+            </p>
+          </div>
+
+          <canvas id="myAreaChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pie Chart -->
+  <div class="col-xl-4 col-lg-5">
+    <div class="card shadow mb-4">
+      <!-- Card Header - Dropdown -->
+      <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Fuentes de ingresos</h6>
+        <div class="dropdown no-arrow">
+          <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-toggle="dropdown"
+            aria-haspopup="true" aria-expanded="false">
+            <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+          </a>
+          <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" aria-labelledby="dropdownMenuLink">
+            <!-- IFO: aqui haremos lo mismo pero con los ingresos de la cartera del USUARIO -->
+            <div class="dropdown-header">De donde salen los ingresos</div>
+            <a class="dropdown-item" href="#">Tarjetas</a>
+            <a class="dropdown-item" href="#">Otros usuarios</a>
+            <!-- <div class="dropdown-divider"></div>
+                        <a class="dropdown-item" href="#">
+                          Something else here
+                        </a> -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Card Body -->
+      <div class="card-body">
+        <div class="chart-pie pt-4 pb-2">
+          <canvas id="myPieChart"></canvas>
+        </div>
+        <div class="mt-4 text-center small">
+          <span class="mr-2">
+            <i class="fas fa-circle text-primary"></i> Direct
+          </span>
+          <span class="mr-2">
+            <i class="fas fa-circle text-success"></i> Social
+          </span>
+          <span class="mr-2">
+            <i class="fas fa-circle text-info"></i> Referral
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts_block %}
+<!-- 4. TU CÓDIGO (El que tiene la función actualizarGrafico) -->
+<script src="{{ url_for('static', filename='js/demo/chart-area-demo.js') }}"></script>
+<script src="{{ url_for('static', filename='js/demo/chart-pie-demo.js') }}"></script>
+{% endblock %}

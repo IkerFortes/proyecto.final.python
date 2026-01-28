@@ -1,0 +1,58 @@
+
+ASI SE PONEN COSAS CON PYTHON
+
+Para mostrar la información del usuario en tu index.html en 2026, debes usar la sintaxis de Jinja2 (las llaves {{ ... }}). Como ya estás pasando el objeto usuario=usuario_actual en el render_template, tienes acceso a todos sus atributos y relaciones (cartera, tarjetas, etc.).
+Aquí tienes cómo aplicarlo en los puntos clave de tu dashboard:
+1. Mostrar el Nombre y el Saldo
+En la sección de bienvenida o en el "Earnings Overview" (Resumen de ganancias):
+html
+<!-- Saludo Personalizado -->
+<h1 class="h3 mb-0 text-gray-800">Hola, {{ usuario.nombre }}</h1>
+
+<!-- Mostrar Saldo de la Cartera -->
+<p>Tienes un saldo disponible de: 
+    <strong>{{ usuario.cartera.cantidad }} V-Coins</strong>
+</p>
+Usa el código con precaución.
+
+2. Mostrar las Tarjetas Registradas
+Como un usuario puede tener varias tarjetas (relationship("Tarjeta", ...)), debes usar un bucle for:
+html
+<div class="card-body">
+    <h6 class="font-weight-bold">Mis Tarjetas:</h6>
+    <ul>
+        {% for tarjeta in usuario.tarjetas %}
+            <li>
+                <i class="fas fa-credit-card"></i> 
+                **** **** **** {{ tarjeta.numero[-4:] }} <!-- Muestra solo los últimos 4 dígitos -->
+                ({{ tarjeta.caducidad }})
+            </li>
+        {% else %}
+            <li>No tienes tarjetas registradas.</li>
+        {% endfor %}
+    </ul>
+</div>
+Usa el código con precaución.
+
+3. Mostrar el Historial de Recargas (Activity Log)
+Puedes acceder a las recargas a través de la cartera del usuario:
+html
+<div class="card-body">
+    <div class="dropdown-header">Recargas recientes</div>
+    {% for recarga in usuario.cartera.recargas %}
+        <div class="mb-2">
+            <span class="text-success">+{{ recarga.cantidad }} V-Coins</span>
+            <span class="small text-muted float-right">{{ recarga.fecha.strftime('%d/%m/%Y') }}</span>
+        </div>
+    {% endfor %}
+</div>
+Usa el código con precaución.
+
+4. Resumen de etiquetas Jinja2 útiles:
+{{ objeto.atributo }}: Imprime un valor (ej. usuario.gmail).
+{% if condicion %}: Para mostrar algo solo si se cumple (ej. si el saldo es bajo).
+{% for elemento in lista %}: Para repetir bloques de HTML (ej. tablas o listas).
+{{ valor | round(2) }}: Filtro para mostrar solo 2 decimales en el dinero.
+¿Por qué funciona esto?
+Gracias a que definiste back_populates en tus modelos de SQLAlchemy, al cargar al Usuario, Flask-SQLAlchemy te permite "navegar" por sus datos relacionados automáticamente. No necesitas hacer más consultas manuales a la base de datos en el index.
+Para más detalles sobre cómo formatear fechas o números, consulta la documentación de Jinja2.

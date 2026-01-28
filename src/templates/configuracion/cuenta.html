@@ -1,0 +1,102 @@
+{% extends "configuracion/sidebar.html" %}
+
+{% block config_content %}
+
+<!-- Begin Page Content -->
+<div class="container-fluid">
+  <!-- Cabecera de página -->
+  <div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Cuenta</h1>
+    <a href="#" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
+      <i class="fas fa-download fa-sm text-white-50"></i> Generar reporte
+    </a>
+  </div>
+
+  <!-- Mensajes flash de Flask -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  {% for category, message in messages %}
+  <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+    {{ message }}
+  </div>
+  {% endfor %}
+  {% endif %}
+  {% endwith %}
+
+  <div class="card shadow mb-4">
+    <div class="card-header py-3">
+      <h6 class="m-0 font-weight-bold text-primary">Ajustes de cuenta</h6>
+    </div>
+    <div class="card-body row">
+
+      <div class="row col-md-7 col-12">
+        <!-- SECCIÓN 1: Información Personal -->
+        <div class="col-md-12 mb-4">
+          <div class="p-3 border rounded bg-light shadow-sm h-100">
+            <h6 class="fw-bold mb-3 text-dark">Información Personal</h6>
+            <p class="small mb-1"><strong>DNI:</strong> {{ usuario.dni }}</p>
+            <p class="small mb-1"><strong>Nombre completo:</strong> {{ usuario.nombre }} {{ usuario.apellidos }}</p>
+            <p class="small mb-0"><strong>Usuario de acceso:</strong> {{ usuario.usuario }}</p>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 2: Cambiar Correo Electrónico -->
+        <div class="col-md-12 mb-4">
+          <div class="p-3 border rounded bg-light shadow-sm">
+            <h6 class="fw-bold mb-3">Cambiar Correo Electrónico</h6>
+            <form action="{{ url_for('config.actualizar_email') }}" method="POST">
+              <div class="mb-2 col-md-12">
+                <label class="small text-muted mb-0" for="gmail_act">Correo actual</label>
+                <input class="form-control form-control-sm bg-white" type="email" id="gmail_act"
+                  value="{{ usuario.gmail }}" readonly>
+              </div>
+              <div class="mb-3 col-md-12">
+                <label class="small fw-bold mb-0" for="nuevo_email">Nuevo Correo</label>
+                <input class="form-control form-control-sm" type="email" id="nuevo_email" name="nuevo_email" required>
+              </div>
+              <div class="d-flex justify-content-end">
+                <button class="btn btn-primary btn-sm px-3" type="submit" style="font-size: 0.8rem;">Actualizar
+                  Email</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- SECCIÓN 3: Cambiar Contraseña -->
+        <div class="col-md-12 mb-4">
+          <div class="p-3 border rounded bg-light shadow-sm">
+            <h6 class="fw-bold mb-3">Cambiar Contraseña</h6>
+            <!-- He usado 'actualizar_password' porque es el nombre de tu función en el último app.py enviado -->
+            <form action="{{ url_for('config.actualizar_contrasena') }}" method="POST">
+              <div class="mb-2">
+                <label class="small fw-bold mb-0" for="pass_actual">Contraseña Actual</label>
+                <input class="form-control form-control-sm" type="password" id="pass_actual" name="pass_actual"
+                  required>
+              </div>
+              <div class="mb-2">
+                <label class="small fw-bold mb-0" for="pass_nuevo">Nueva Contraseña</label>
+                <input class="form-control form-control-sm" type="password" id="pass_nuevo" name="pass_nuevo" required>
+              </div>
+              <div class="mb-3">
+                <label class="small fw-bold mb-0" for="pass_confirmar">Confirmar Nueva</label>
+                <input class="form-control form-control-sm" type="password" id="pass_confirmar" name="pass_confirmar"
+                  required>
+              </div>
+              <div class="d-flex justify-content-end">
+                <button class="btn btn-primary btn-sm px-3" type="submit" style="font-size: 0.8rem;">Actualizar
+                  Contraseña</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div> <!-- End Row -->
+
+      <hr>
+      <div class="text-muted small col-12">
+        Styling for the area chart can be found in the <code>/js/demo/chart-area-demo.js</code> file.
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
