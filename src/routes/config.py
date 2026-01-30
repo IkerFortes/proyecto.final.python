@@ -22,6 +22,18 @@ config_bp = Blueprint("config", __name__, url_prefix="/configuracion")
 
 @config_bp.before_request
 def verificar_sesion():
+    """Verifica si el usuario está autenticado antes de cada solicitud en este blueprint.
+
+    Si el usuario no está logueado, lo redirige a la página de inicio de sesión.
+
+    Args:
+        None (Esta función es un hook de Flask, no recibe argumentos explícitos)
+
+    Returns:
+        redirect or None: Una redirección a la página de login si no hay sesión,
+                         o None para continuar con la solicitud si está autenticado.
+    """
+
     if not esta_autenticado():
         return redirect(url_for("auth.login"))
 
@@ -31,11 +43,28 @@ def verificar_sesion():
 
 @config_bp.route("cuenta")
 def cuenta():
+    """Renderiza la página principal de la cuenta del usuario.
+
+    Args:
+        None (espera parámetros de contexto estándar de Flask/Jinja si los hubiera)
+
+    Returns:
+        render_template: La plantilla HTML para la página de la cuenta.
+    """
+
     return render_template("configuracion/cuenta.html")
 
 
 @config_bp.route("cuenta/actualizar_email", methods=["POST"])
 def actualizar_email():
+    """Actualiza el correo electrónico del usuario actual.
+
+    Args:
+        None (explícito en la función, pero espera datos de formulario en 'request')
+
+    Returns:
+        redirect: Una redirección a la página de la cuenta.
+    """
 
     nuevo_email = request.form.get("nuevo_email")
     usuario_actual = obtener_usuario_actual()
@@ -60,6 +89,14 @@ def actualizar_email():
 
 @config_bp.route("cuenta/actualizar_contrasena", methods=["POST"])
 def actualizar_contrasena():
+    """Actualiza la contraseña del usuario actual tras verificar la anterior.
+
+    Args:
+        None (explícito en la función, pero espera datos de formulario en 'request')
+
+    Returns:
+        redirect: Una redirección a la página de la cuenta.
+    """
 
     pass_actual = request.form.get("pass_actual")
     pass_nuevo = request.form.get("pass_nuevo")
@@ -85,6 +122,15 @@ def actualizar_contrasena():
 
 @config_bp.route("notificaciones")
 def notificaciones():
+    """Renderiza la página de notificaciones.
+
+    Args:
+        None (espera parámetros de contexto estándar de Flask/Jinja si los hubiera)
+
+    Returns:
+        render_template: La plantilla HTML para la página de notificaciones.
+    """
+
     return render_template("configuracion/notificaciones.html")
 
 
@@ -93,6 +139,15 @@ def notificaciones():
 
 @config_bp.route("opciones-de-pago")
 def opciones_de_pago():
+    """Renderiza la página con las opciones de pago y tarjetas del usuario actual.
+
+    Args:
+        None (espera parámetros de contexto estándar de Flask/Jinja si los hubiera)
+
+    Returns:
+        render_template: La plantilla HTML para las opciones de pago, pasando la lista de tarjetas.
+    """
+
     usuario_actual = obtener_usuario_actual()
     print(
         f"DEBUG: Buscando tarjetas para el usuario ID: {usuario_actual.id}"  # type: ignore
@@ -105,6 +160,20 @@ def opciones_de_pago():
 
 @config_bp.route("/anadir-tarjeta", methods=["POST"])
 def anadir_tarjeta():
+    """Procesa los datos del formulario para añadir una nueva tarjeta de pago al usuario actual.
+
+    Valida los datos y, si son correctos, guarda la tarjeta en la base de datos.
+    Si hay errores de validación, redirige al usuario a la página de opciones de pago con mensajes flash y datos previos.
+
+    Args:
+        None (espera datos de formulario a través de 'request.form')
+
+    Returns:
+        redirect or render_template:
+            - Redirección a `opciones_de_pago` si tiene éxito.
+            - Renderiza la plantilla `opciones-de-pago.html` con errores si la validación falla.
+    """
+
     # Recogemos todos los datos
     form_data = {
         "propietario": request.form.get("propietario_tarjeta"),
@@ -154,4 +223,12 @@ def anadir_tarjeta():
 
 @config_bp.route("configuracion-avanzada")
 def configuracion_avanzada():
+    """Renderiza la página de configuración avanzada.
+
+    Args:
+        None (espera parámetros de contexto estándar de Flask/Jinja si los hubiera)
+
+    Returns:
+        render_template: La plantilla HTML para la página de configuración avanzada.
+    """
     return render_template("configuracion/configuracion-avanzada.html")
