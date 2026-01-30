@@ -33,6 +33,16 @@
     </a>
   </div>
 
+  <!-- Mensajes flash de Flask -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  {% for category, message in messages %}
+  <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+    {{ message }}
+  </div>
+  {% endfor %}
+  {% endif %}
+  {% endwith %}
 
   <div class="card shadow mb-4">
     <div class="card-header py-3">
@@ -61,9 +71,9 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {% for tarjetas in tarjeta %}
+                  {% for tarjeta in tarjetas %}
                   <tr>
-                    <td>{{tarjeta.nombre_propietario}}</td>
+                    <td>{{tarjeta.propietario_nombre}}</td>
                     <td>{{tarjeta.numero}}</td>
                     <td>{{tarjeta.caducidad}}</td>
                     <td>{{tarjeta.cvc}}</td>
@@ -79,26 +89,37 @@
         <div class="col-md-12 mb-4">
           <div class="p-3 border rounded bg-light shadow-sm">
             <h6 class="fw-bold mb-3">Agregar una tarjeta</h6>
-            <form class="row" action="" method="POST">
+            <form class="row" action="{{ url_for('config.anadir_tarjeta') }}" method="POST">
               <!-- { url_for('config.agregar_tarjeta') }} -->
               <div class="mb-2 col-12 col-md-3">
                 <label class="small text-muted mb-0" for="propietario_tarjeta">Propietario</label>
-                <input class="form-control form-control-sm bg-white" type="text" id="propietario_tarjeta" required>
+                <input class="form-control form-control-sm bg-white" type="text" id="propietario_tarjeta"
+                  name="propietario_tarjeta" value="{{ datos_previos.propietario if datos_previos else '' }}" required>
               </div>
+
               <div class="mb-3 col-12 col-md-3">
-                <label class="small fw-bold mb-0" for="nueva_tarjeta">Número</label>
-                <input class="form-control form-control-sm" type="email" id="nueva_tarjeta" name="nueva_tarjeta"
+                <label class="small fw-bold mb-0" for="numero_tarjeta">Número</label>
+                <input class="form-control form-control-sm" type="text" id="numero_tarjeta" name="numero_tarjeta"
+                  placeholder="Dígitos de la tarjeta" value="{{ datos_previos.numero if datos_previos else '' }}"
                   required>
               </div>
-              <div class="mb-3 col-12 col-md-3">
+
+              <div class="mb-3 col-6 col-md-2">
                 <label class="small fw-bold mb-0" for="caducidad_tarjeta">Caducidad</label>
-                <input class="form-control form-control-sm" type="date" id="caducidad_tarjeta" name="caducidad_tarjeta"
-                  required>
+                <div class="d-flex gap-1">
+                  <input class="form-control form-control-sm text-center" type="text" placeholder="DD"
+                    id="caducidad_tarjeta_dia" name="caducidad_tarjeta_dia" maxlength="2"
+                    value="{{ datos_previos.dia if datos_previos else '' }}" required>
+                  <input class="form-control form-control-sm text-center" type="text" placeholder="MM"
+                    id="caducidad_tarjeta_mes" name="caducidad_tarjeta_mes" maxlength="2"
+                    value="{{ datos_previos.mes if datos_previos else '' }}" required>
+                </div>
               </div>
-              <div class="mb-3 col-12 col-md-3">
+
+              <div class="mb-3 col-12 col-md-1">
                 <label class="small fw-bold mb-0" for="cvc_tarjeta">CVC</label>
-                <input class="form-control form-control-sm" type="text" id="cvc_tarjeta" name="cvc_tarjeta" max="3"
-                  required>
+                <input class="form-control form-control-sm" type="text" id="cvc_tarjeta" name="cvc_tarjeta"
+                  maxlength="4" placeholder="123" value="{{ datos_previos.cvc if datos_previos else '' }}" required>
               </div>
               <div class="mb-12 col-md-12 d-flex justify-content-end">
                 <button class="btn btn-primary btn-sm px-3" type="submit" style="font-size: 0.8rem;">Actualizar

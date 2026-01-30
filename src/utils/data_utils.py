@@ -7,6 +7,8 @@ from models import Cartera, Transaccion
 from database import db
 from .translate_utils import traducir_mes, traducir_dia_semana
 
+import re
+
 
 def obtener_datos_grafico_saldo_evolutivo(cartera_id, rango):
     hoy = datetime.now()
@@ -107,3 +109,34 @@ def obtener_datos_grafico_saldo_evolutivo(cartera_id, rango):
         labels_es.append(label)
 
     return {"labels": labels_es, "values": values_evolucion}
+
+
+def validar_datos_tarjeta_form(propietario, numero, dia, mes, cvc):
+    # 1. Verificar que no falte ningún dato (Evita el IntegrityError: NOT NULL)
+    if not all([propietario, numero, dia, mes, cvc]):
+        return False, "Todos los campos son obligatorios."
+
+    # 2. Validar Propietario
+    if len(propietario.strip()) < 3:
+        return False, "El nombre del propietario es demasiado corto."
+
+    # 3. Validar Número (Solo dígitos, entre 13 y 19)
+    num_clean = re.sub(r"\D", "", numero)
+    if not re.match(r"^\d{13,19}$", num_clean):
+        return False, "El número de tarjeta no es válido."
+
+    # 4. Validar Fecha (Día y Mes)
+    # Nota: Si el formulario pide DD/MM, validamos rangos
+    try:
+        d_int = int(dia)
+        m_int = int(mes)
+        if not (1 <= d_int <= 31 and 1 <= m_int <= 12):
+            raise ValueError
+    except ValueError:
+        return False, "La fecha (Día/Mes) es inválida."
+
+    # 5. Validar CVC (3 o 4 dígitos)
+    if not re.match(r"^\d{3,4}$", cvc):
+        return False, "El CVC debe tener 3 o 4 dígitos."
+
+    return True, None
