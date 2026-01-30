@@ -1,0 +1,125 @@
+{% extends "cuenta/sidebar.html" %}
+
+{% block acount_content %}
+<!-- Cabecera de página -->
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+  <h1 class="h3 mb-0 text-gray-800">Análisis de Datos</h1>
+  <a href="#" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
+    <i class="fas fa-download fa-sm text-white-50"></i> Generar reporte
+  </a>
+</div>
+
+<!-- Approach -->
+<div class="card shadow mb-4">
+  <div class="card-header py-3">
+    <h6 class="m-0 font-weight-bold text-primary">Resumen de cuenta</h6>
+  </div>
+  <div class="card-body">
+    <p>Hola, {{ usuario.nombre }}, aqui puedes transferir VirtualCoin a otros usuarios.</p>
+    <p class="mb-0">
+      Transfiere <strong> VirtualCoin </strong>, a cualquier usuario existente. 
+      RECUERDA, tienes que tener saldo suficiente.
+    </p>
+  </div>
+</div>
+
+<!-- Nueva fila: Formulario a la izquierda, tarjetas a la derecha -->
+<div class="row">
+  <!-- Formulario Transfiere tu dinero -->
+  <div class="col-xl-8 col-lg-7 mb-4 ">
+    <div class="card shadow mb-4">
+      <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Transfiere tu dinero</h6>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <form class="row col-12" method="post">
+            <div class="col-4 mb-2">
+              <input class="form-control" type="text" name="usu_transferir" placeholder="Usuario">
+            </div>
+            <div class="col-4 mb-2">
+              <input class="form-control" type="number" name="cantidad_transferir" placeholder="Cantidad">
+            </div>
+            <div class="col-4 mb-2">
+              <input class="btn btn-primary w-100" type="submit" value="Transferir">
+            </div>
+          </form>
+          <div class="col-12">
+            {% if "éxito" in error_transferencia.lower() %}
+                <p class="text-success">{{ error_transferencia }}</p>
+            {% else %}
+                <p class="text-danger">{{ error_transferencia }}</p>
+            {% endif %}
+        </div>
+        </div>
+        <canvas id="myAreaChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tarjetas a la derecha -->
+  <div class="col-xl-4 col-lg-5 mb-4">
+    <!-- Saldo actual -->
+    <div class="card border-left-success shadow mb-4 py-2">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+              Saldo actual
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">
+              {{usuario.cartera.cantidad}} €
+            </div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gastos mensuales -->
+    <div class="card border-left-danger shadow mb-4 py-2">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+              Gastos de {{mes_actual}}
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">
+              {{gastos_mensuales}} €
+            </div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-exclamation-circle fa-2x text-gray-300"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Solicitudes pendientes -->
+    <div class="card border-left-warning shadow mb-4 py-2">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+              Solicitudes pendientes
+            </div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">
+              18
+            </div>
+          </div>
+          <div class="col-auto">
+            <i class="fas fa-comments fa-2x text-gray-300"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts_block %}
+<script src="{{ url_for('static', filename='js/demo/chart-area-demo.js') }}"></script>
+<script src="{{ url_for('static', filename='js/demo/chart-pie-demo.js') }}"></script>
+{% endblock %}
