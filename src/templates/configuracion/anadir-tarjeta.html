@@ -1,0 +1,83 @@
+{% extends "cuenta/sidebar.html" %}
+
+{% block acount_content %}
+
+<!-- Cabecera -->
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+  <h1 class="h3 mb-0 text-gray-800">Añadir tarjeta</h1>
+</div>
+
+<div class="card shadow mb-4">
+  <div class="card-header py-3">
+    <h6 class="m-0 font-weight-bold text-primary">Datos de la tarjeta</h6>
+  </div>
+  <div class="card-body">
+
+    <form method="post">
+
+      <!-- Propietario -->
+      <div class="mb-3">
+        <label class="form-label">Nombre del propietario</label>
+        <input
+          type="text"
+          name="propietario"
+          class="form-control"
+          required
+        >
+      </div>
+
+      <!-- Número -->
+      <div class="mb-3">
+        <label class="form-label">Número de tarjeta</label>
+        <input
+          type="text"
+          name="numero"
+          class="form-control"
+          maxlength="16"
+          placeholder="1234123412341234"
+          required
+        >
+      </div>
+
+      <!-- Caducidad + CVC -->
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Caducidad (MM/AA)</label>
+          <input
+            type="text"
+            name="caducidad"
+            class="form-control"
+            placeholder="12/27"
+            required
+          >
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <label class="form-label">CVC</label>
+          <input
+            type="password"
+            name="cvc"
+            class="form-control"
+            maxlength="3"
+            required
+          >
+        </div>
+      </div>
+
+      <!-- Botón -->
+      <button type="submit" class="btn btn-primary">
+        Guardar tarjeta
+      </button>
+
+    </form>
+
+    {% if error_tarjeta %}
+      <div class="mt-3">
+        <p class="text-danger">{{ error_tarjeta }}</p>
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+
+{% endblock %}

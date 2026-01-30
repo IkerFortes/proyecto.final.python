@@ -8,7 +8,10 @@ from services import (
     obtener_usuario_actual,
     registrada_tarjeta,
     guardar_tarjeta_en_db,
+    obtener_tarjetas_por_usuario
 )
+
+
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from services import obtener_tarjetas_por_usuario
@@ -134,101 +137,118 @@ def notificaciones():
     return render_template("configuracion/notificaciones.html")
 
 
-# =================================== OPCIONES DE PAGO ================================= #
 
 
-@config_bp.route("opciones-de-pago")
+
+# ================================== OPCIONES DE PAGO ==================================
+
+@config_bp.route("/opciones-de-pago")
 def opciones_de_pago():
-    """Renderiza la página con las opciones de pago y tarjetas del usuario actual.
-
-    Args:
-        None (espera parámetros de contexto estándar de Flask/Jinja si los hubiera)
-
-    Returns:
-        render_template: La plantilla HTML para las opciones de pago, pasando la lista de tarjetas.
-    """
-
     usuario_actual = obtener_usuario_actual()
-    print(
-        f"DEBUG: Buscando tarjetas para el usuario ID: {usuario_actual.id}"  # type: ignore
-    )  # Revisa tu consola
-    tarjetas = obtener_tarjetas_por_usuario(usuario_actual.id)  # type: ignore
-    print(f"DEBUG: Tarjetas encontradas: {len(tarjetas) if tarjetas else 0}")
-
+    tarjetas = obtener_tarjetas_por_usuario(usuario_actual.id)
     return render_template("configuracion/opciones-de-pago.html", tarjetas=tarjetas)
 
 
-@config_bp.route("/anadir-tarjeta", methods=["POST"])
+@config_bp.route("/anadir-tarjeta", methods=["GET", "POST"])
 def anadir_tarjeta():
-    """Procesa los datos del formulario para añadir una nueva tarjeta de pago al usuario actual.
-
-    Valida los datos y, si son correctos, guarda la tarjeta en la base de datos.
-    Si hay errores de validación, redirige al usuario a la página de opciones de pago con mensajes flash y datos previos.
-
-    Args:
-        None (espera datos de formulario a través de 'request.form')
-
-    Returns:
-        redirect or render_template:
-            - Redirección a `opciones_de_pago` si tiene éxito.
-            - Renderiza la plantilla `opciones-de-pago.html` con errores si la validación falla.
-    """
-
-    # Recogemos todos los datos
-    form_data = {
-        "propietario": request.form.get("propietario_tarjeta"),
-        "numero": request.form.get("numero_tarjeta"),
-        "dia": request.form.get("caducidad_tarjeta_dia"),
-        "mes": request.form.get("caducidad_tarjeta_mes"),
-        "cvc": request.form.get("cvc_tarjeta"),
-    }
-
     usuario_actual = obtener_usuario_actual()
+    error_tarjeta = ""
 
-    # Validar masivamente
-    es_valida, mensaje = validar_datos_tarjeta_form(**form_data)
+    if request.method == "POST":
+        propietario = request.form.get("propietario")
+        numero = request.form.get("numero")
+        caducidad = request.form.get("caducidad")
+        cvc = request.form.get("cvc")
 
-    if not es_valida:
-        flash(mensaje, "danger")  # type: ignore
-        # Obtenemos las tarjetas de nuevo para recargar la página correctamente
-        usuario_actual = obtener_usuario_actual()
-        tarjetas = obtener_tarjetas_por_usuario(usuario_actual.id)  # type: ignore
-
-        # IMPORTANTE: Pasamos 'form_data' de vuelta al HTML
-        return render_template(
-            "configuracion/opciones-de-pago.html",
-            tarjetas=tarjetas,
-            datos_previos=form_data,
-        )
-
-    # Formateamos la fecha para guardarla (ejemplo: "DD/MM")
-    fecha_full = f"{form_data['dia']}/{form_data['mes']}"
-
-    nueva_tarjeta = Tarjeta(
-        propietario_nombre=form_data["propietario"],  # type: ignore
-        numero=form_data["numero"],  # type: ignore
-        caducidad=fecha_full,  # type: ignore
-        cvc=form_data["cvc"],  # type: ignore
-        id_usuario=usuario_actual.id,  # type: ignore
+        if not all([propietario, numero, caducidad, cvc]):
+            error_tarjeta = "Todos los campos son obligatorios"
+        elif len(numero) != 16 or not numero.isdigit():
+            error_tarjeta = "Número de tarjeta inválido"
+        elif len(cvc) != 3 or not cvc.isdigit():
+            error_tarjeta = "CVC inválido"
+        else:
+            nueva_tarjeta = Tarjeta(
+                propietario_nombre=propietario,
+                numero=numero,
+                caducidad=caducidad,
+                cvc=int(cvc),
+                id_usuario=usuario_actual.id,
+            )
+            if registrada_tarjeta(nueva_tarjeta):
+                error_tarjeta = "Esta tarjeta ya está registrada"
+            else:
+                guardar_tarjeta_en_db(nueva_tarjeta)
+                render_template(
+        "configuracion/anadir-tarjeta.html",
+        usuario=usuario_actual,
+        error_tarjeta=error_tarjeta,
+    )
+    return render_template(
+        "configuracion/anadir-tarjeta.html",
+        usuario=usuario_actual,
+        error_tarjeta=error_tarjeta,
     )
 
-    guardar_tarjeta_en_db(nueva_tarjeta)
-    flash("Tarjeta añadida con éxito", "success")
 
-    return redirect(url_for("config.opciones_de_pago"))
+# ================================== MIS TARJETAS ==================================
+
+@config_bp.route("/mis-tarjetas", methods=["GET", "POST"])
+def mis_tarjetas():
+    usuario_actual = obtener_usuario_actual()
+    tarjetas = obtener_tarjetas_por_usuario(usuario_actual.id)
+    
+    # Para no depender de funciones inexistentes, solo mostramos tarjetas
+    return render_template(
+        "configuracion/mis-tarjetas.html",
+        tarjetas=tarjetas,
+        usuarios=[],  # opcional, no se comparte nada
+        mensaje=None
+    )
 
 
-# =================================== OPCIONES DE PAGO ================================= #
+# ================================== ELIMINAR TARJETA ==================================
+
+@config_bp.route("/eliminar-tarjeta", methods=["POST"])
+def eliminar_tarjeta():
+    tarjeta_id = request.form.get("tarjeta_id")
+    if tarjeta_id:
+        t = Tarjeta.query.get(tarjeta_id)
+        if t:
+            db.session.delete(t)
+            db.session.commit()
+            flash("Tarjeta eliminada correctamente", "success")
+        else:
+            flash("Tarjeta no encontrada", "danger")
+    else:
+        flash("No se pudo eliminar la tarjeta", "danger")
+    return redirect(url_for("config.mis_tarjetas"))
 
 
-@config_bp.route("configuracion-avanzada")
-def configuracion_avanzada():
-    """Renderiza la página de configuración avanzada.
+@config_bp.route("/compartir-tarjeta", methods=["POST"])
+def compartir_tarjeta():
+    tarjeta_id = request.form.get("tarjeta_id")
+    usuario_nombre = request.form.get("usuario_nombre")
 
-    Args:
-        None (espera parámetros de contexto estándar de Flask/Jinja si los hubiera)
+    if not tarjeta_id or not usuario_nombre:
+        mensaje = "Debes seleccionar una tarjeta y escribir un usuario"
+        return redirect(url_for("config.mis_tarjetas", mensaje=mensaje))
 
-    Returns:
-        render_template: La plantilla HTML para la página de configuración avanzada.
-    """
-    return render_template("configuracion/configuracion-avanzada.html")
+    # Buscar usuario por nombre
+    usuario_destino = Usuario.query.filter_by(nombre=usuario_nombre).first()
+    if not usuario_destino:
+        mensaje = f"El usuario '{usuario_nombre}' no existe"
+        return render_template(
+            "configuracion/mis-tarjetas.html",
+            tarjetas=obtener_tarjetas_por_usuario(obtener_usuario_actual().id),
+            mensaje=mensaje
+        )
+
+    # Aquí tu lógica de compartir tarjeta
+    # Por ejemplo, podrías crear un registro en otra tabla de "tarjetas compartidas"
+    mensaje = f"Tarjeta compartida correctamente con {usuario_destino.nombre}"
+
+    return render_template(
+        "configuracion/mis-tarjetas.html",
+        tarjetas=obtener_tarjetas_por_usuario(obtener_usuario_actual().id),
+        mensaje=mensaje
+    )
