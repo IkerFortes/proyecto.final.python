@@ -14,3 +14,18 @@ def obtener_tarjetas_por_usuario(id_usuario: int):
         return None
 
     return tarjetas
+
+
+def registrada_tarjeta(tarjeta_data, id_usuario):
+    # 'tarjeta_data' es el objeto/diccionario que recibes.
+    # Debes acceder a su propiedad '.numero'
+    existe = (
+        db.session.query(Tarjeta)
+        .filter(Tarjeta.numero == tarjeta_data.numero, Tarjeta.id_usuario == id_usuario)
+        .first()
+    )  # .first() es más eficiente que .all() para verificar existencia
+
+    return existe is not None
+
+
+# def aniadir_tarjeta(tarjeta):
