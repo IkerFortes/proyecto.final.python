@@ -8,13 +8,6 @@ from database import db
 
 from datetime import datetime, date, timedelta
 
-
-
-
-
-
-
-
 # traducir mes
 
 def obtener_datos_grafico_ingresos(cartera_id, rango):

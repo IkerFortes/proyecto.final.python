@@ -10,7 +10,8 @@ from .auth_service import (
 
 # from .recargar_service import
 # from .recargar_service import
-# from .tarjeta_service import
+from .tarjeta_service import obtener_tarjetas_por_usuario
+
 # from .transaccion_service import
 
 from .usuario_service import (

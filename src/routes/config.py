@@ -5,6 +5,8 @@ from models import Usuario
 from services import esta_autenticado, obtener_usuario_actual
 from werkzeug.security import generate_password_hash, check_password_hash
 
+from services import obtener_tarjetas_por_usuario
+
 # Creamos el Blueprint
 config_bp = Blueprint("config", __name__, url_prefix="/configuracion")
 
@@ -81,7 +83,10 @@ def notificaciones():
 
 @config_bp.route("opciones-de-pago")
 def opciones_de_pago():
-    return render_template("configuracion/opciones-de-pago.html")
+    usuario_actual = obtener_usuario_actual()
+    tarjetas = obtener_tarjetas_por_usuario(usuario_actual.id)  # type: ignore
+
+    return render_template("configuracion/opciones-de-pago.html", tarjetas=tarjetas)
 
 
 @config_bp.route("configuracion-avanzada")

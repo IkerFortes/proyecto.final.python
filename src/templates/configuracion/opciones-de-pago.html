@@ -40,7 +40,7 @@
     </div>
     <div class="card-body row">
 
-      <div class="row col-md-7 col-12">
+      <div class="row col-md-12 col-12">
         <!-- SECCIÓN 1: Información Personal -->
         <div class="col-md-12 mb-4">
           <div class="p-3 border rounded bg-light shadow-sm h-100">
@@ -54,23 +54,21 @@
               <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Position</th>
-                    <th>Office</th>
-                    <th>Age</th>
-                    <th>Start date</th>
-                    <th>Salary</th>
+                    <th>Propietario</th>
+                    <th>Número</th>
+                    <th>Caducidad</th>
+                    <th>CVC</th>
                   </tr>
                 </thead>
                 <tbody>
+                  {% for tarjetas in tarjeta %}
                   <tr>
-                    <td>Tiger Nixon</td>
-                    <td>System Architect</td>
-                    <td>Edinburgh</td>
-                    <td>61</td>
-                    <td>2011/04/25</td>
-                    <td>$320,800</td>
+                    <td>{{tarjeta.nombre_propietario}}</td>
+                    <td>{{tarjeta.numero}}</td>
+                    <td>{{tarjeta.caducidad}}</td>
+                    <td>{{tarjeta.cvc}}</td>
                   </tr>
+                  {% endfor %}
                 </tbody>
               </table>
             </div>
@@ -80,18 +78,29 @@
         <!-- SECCIÓN 2: Cambiar Correo Electrónico -->
         <div class="col-md-12 mb-4">
           <div class="p-3 border rounded bg-light shadow-sm">
-            <h6 class="fw-bold mb-3">Cambiar Correo Electrónico</h6>
-            <form action="{{ url_for('config.actualizar_email') }}" method="POST">
-              <div class="mb-2 col-md-12">
-                <label class="small text-muted mb-0" for="gmail_act">Correo actual</label>
-                <input class="form-control form-control-sm bg-white" type="email" id="gmail_act"
-                  value="{{ usuario.gmail }}" readonly>
+            <h6 class="fw-bold mb-3">Agregar una tarjeta</h6>
+            <form class="row" action="" method="POST">
+              <!-- { url_for('config.agregar_tarjeta') }} -->
+              <div class="mb-2 col-12 col-md-3">
+                <label class="small text-muted mb-0" for="propietario_tarjeta">Propietario</label>
+                <input class="form-control form-control-sm bg-white" type="text" id="propietario_tarjeta" required>
               </div>
-              <div class="mb-3 col-md-12">
-                <label class="small fw-bold mb-0" for="nuevo_email">Nuevo Correo</label>
-                <input class="form-control form-control-sm" type="email" id="nuevo_email" name="nuevo_email" required>
+              <div class="mb-3 col-12 col-md-3">
+                <label class="small fw-bold mb-0" for="nueva_tarjeta">Número</label>
+                <input class="form-control form-control-sm" type="email" id="nueva_tarjeta" name="nueva_tarjeta"
+                  required>
               </div>
-              <div class="d-flex justify-content-end">
+              <div class="mb-3 col-12 col-md-3">
+                <label class="small fw-bold mb-0" for="caducidad_tarjeta">Caducidad</label>
+                <input class="form-control form-control-sm" type="date" id="caducidad_tarjeta" name="caducidad_tarjeta"
+                  required>
+              </div>
+              <div class="mb-3 col-12 col-md-3">
+                <label class="small fw-bold mb-0" for="cvc_tarjeta">CVC</label>
+                <input class="form-control form-control-sm" type="text" id="cvc_tarjeta" name="cvc_tarjeta" max="3"
+                  required>
+              </div>
+              <div class="mb-12 col-md-12 d-flex justify-content-end">
                 <button class="btn btn-primary btn-sm px-3" type="submit" style="font-size: 0.8rem;">Actualizar
                   Email</button>
               </div>
@@ -99,33 +108,6 @@
           </div>
         </div>
 
-        <!-- SECCIÓN 3: Cambiar Contraseña -->
-        <div class="col-md-12 mb-4">
-          <div class="p-3 border rounded bg-light shadow-sm">
-            <h6 class="fw-bold mb-3">Cambiar Contraseña</h6>
-            <!-- He usado 'actualizar_password' porque es el nombre de tu función en el último app.py enviado -->
-            <form action="{{ url_for('config.actualizar_contrasena') }}" method="POST">
-              <div class="mb-2">
-                <label class="small fw-bold mb-0" for="pass_actual">Contraseña Actual</label>
-                <input class="form-control form-control-sm" type="password" id="pass_actual" name="pass_actual"
-                  required>
-              </div>
-              <div class="mb-2">
-                <label class="small fw-bold mb-0" for="pass_nuevo">Nueva Contraseña</label>
-                <input class="form-control form-control-sm" type="password" id="pass_nuevo" name="pass_nuevo" required>
-              </div>
-              <div class="mb-3">
-                <label class="small fw-bold mb-0" for="pass_confirmar">Confirmar Nueva</label>
-                <input class="form-control form-control-sm" type="password" id="pass_confirmar" name="pass_confirmar"
-                  required>
-              </div>
-              <div class="d-flex justify-content-end">
-                <button class="btn btn-primary btn-sm px-3" type="submit" style="font-size: 0.8rem;">Actualizar
-                  Contraseña</button>
-              </div>
-            </form>
-          </div>
-        </div>
       </div> <!-- End Row -->
 
       <hr>
@@ -141,7 +123,6 @@
 {% block scripts_block %}
 
 <!-- Bootstrap core JavaScript-->
-<script src="{{ url_for('static', filename='vendor/jquery/jquery.min.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
 
 <!-- Page level plugins -->
