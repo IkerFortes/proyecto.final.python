@@ -1,11 +1,10 @@
-from flask import Blueprint, render_template, redirect, url_for, jsonify
+from flask import Blueprint, render_template, redirect, url_for, jsonify, request, flash
 from database import db
 from datetime import datetime
 from sqlalchemy import func
-from models import Transaccion
+from models import Transaccion, Usuario, Cartera
 from services import esta_autenticado, obtener_usuario_actual
 from utils import traducir_mes, obtener_datos_grafico_saldo_evolutivo
-
 main_bp = Blueprint("main", __name__)
 
 
@@ -62,3 +61,74 @@ def api_grafico(rango):
 
 
 # =================================== PÁGINA PRINCIPAL ================================= #
+
+
+# =================================== TRANSFERENCIAS ================================= #
+@main_bp.route("/transferir", methods=["GET", "POST"])
+def transferencias():
+    usuario_actual = obtener_usuario_actual()
+    if not usuario_actual or not usuario_actual.cartera:
+        return redirect(url_for("login"))
+
+    error_transferencia = ""  # Por defecto no hay error
+
+    if request.method == "POST":
+        dni_receptor = request.form.get("usu_transferir")
+        cantidad = request.form.get("cantidad_transferir")
+
+        # Validación de cantidad
+        try:
+            cantidad = float(cantidad)
+            if cantidad <= 0:
+                error_transferencia = "La cantidad debe ser mayor a 0"
+                return render_template("cuenta/transferir.html", usuario=usuario_actual, error_transferencia=error_transferencia)
+        except (ValueError, TypeError):
+            error_transferencia = "Cantidad inválida"
+            return render_template("cuenta/transferir.html", usuario=usuario_actual, error_transferencia=error_transferencia)
+
+        # Buscar usuario receptor
+        receptor = Usuario.query.filter_by(dni=dni_receptor).first()
+        if not receptor or not receptor.cartera:
+            error_transferencia = "El usuario receptor no existe o no tiene cartera"
+            return render_template("cuenta/transferir.html", usuario=usuario_actual, error_transferencia=error_transferencia)
+
+        # Comprobar saldo suficiente
+        if usuario_actual.cartera.cantidad < cantidad:
+            error_transferencia = "Saldo insuficiente"
+            return render_template("cuenta/transferir.html", usuario=usuario_actual, error_transferencia=error_transferencia)
+
+        # Realizar transferencia
+        usuario_actual.cartera.cantidad -= cantidad
+        receptor.cartera.cantidad += cantidad
+
+        # Crear registro de transacción
+        transaccion = Transaccion(
+            cantidad=cantidad,
+            id_cartera_enviado=usuario_actual.cartera.id,
+            id_cartera_recibido=receptor.cartera.id,
+            fecha=datetime.now()
+        )
+        db.session.add(transaccion)
+
+        try:
+            db.session.commit()
+            error_transferencia = f"Transferencia de {cantidad} a {receptor.nombre} realizada con éxito"
+            # También puedes cambiar el color en el template según el mensaje de éxito
+        except Exception as e:
+            db.session.rollback()
+            error_transferencia = f"Error al procesar la transferencia: {str(e)}"
+
+    # Renderizar siempre el template con el error (si lo hay)
+    return render_template("cuenta/transferir.html", usuario=usuario_actual, error_transferencia=error_transferencia)
+
+# historial #
+@main_bp.route("/historial")
+def historial():
+    if not esta_autenticado():
+        return redirect(url_for("login"))
+
+    usuario_actual = obtener_usuario_actual()
+    hoy = datetime.now()
+
+    return render_template("cuenta/historial.html",
+                           usuario=usuario_actual)
