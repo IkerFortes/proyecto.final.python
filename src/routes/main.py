@@ -7,6 +7,9 @@ from models import Transaccion, Usuario, Cartera
 from services import esta_autenticado, obtener_usuario_actual
 from utils import traducir_mes, obtener_datos_grafico_saldo_evolutivo
 from services import obtener_tarjetas_por_usuario
+from models import Transaccion, Usuario, Tarjeta, TarjetaUsuario  
+from decimal import Decimal, InvalidOperation
+
 
 main_bp = Blueprint("main", __name__)
 
@@ -90,88 +93,127 @@ def api_grafico(rango):
 
 # =================================== TRANSFERENCIAS ================================= #
 
-
 @main_bp.route("/transferir", methods=["GET", "POST"])
 def transferencias():
     usuario_actual = obtener_usuario_actual()
     if not usuario_actual or not usuario_actual.cartera:
-        return redirect(url_for("login"))
+        return redirect(url_for("auth.login"))
 
     error_transferencia = ""
 
-    # 🔹 OBTENER TARJETAS DEL USUARIO
-    tarjetas = obtener_tarjetas_por_usuario(usuario_actual.id)
-
     if request.method == "POST":
-        cantidad = request.form.get("cantidad_transferir")
-        id_tarjeta = request.form.get("tarjeta_destino")
+        nombre_destino = request.form.get("usu_transferir")
+        cantidad_raw = request.form.get("cantidad_transferir")
 
-        # Validar cantidad
         try:
-            cantidad = float(cantidad)
-            if cantidad <= 0:
-                raise ValueError
-        except (ValueError, TypeError):
+            cantidad = Decimal(cantidad_raw)
+        except (InvalidOperation, TypeError):
             error_transferencia = "Cantidad inválida"
             return render_template(
                 "cuenta/transferir.html",
                 usuario=usuario_actual,
-                tarjetas=tarjetas,
                 error_transferencia=error_transferencia,
             )
 
-        if not id_tarjeta:
-            error_transferencia = "Debes seleccionar una tarjeta"
-            return render_template(
-                "cuenta/transferir.html",
-                usuario=usuario_actual,
-                tarjetas=tarjetas,
-                error_transferencia=error_transferencia,
-            )
+        if cantidad <= 0:
+            error_transferencia = "La cantidad debe ser mayor que 0"
+        else:
+            usuario_destino = Usuario.query.filter_by(nombre=nombre_destino).first()
 
+            if not usuario_destino or not usuario_destino.cartera:
+                error_transferencia = "El usuario destino no existe"
+            elif cantidad > usuario_actual.cartera.cantidad:
+                error_transferencia = "No tienes saldo suficiente"
+            else:
+                usuario_actual.cartera.cantidad -= cantidad
+                usuario_destino.cartera.cantidad += cantidad
 
-        error_transferencia = "Transferencia realizada con éxito"
+                transaccion = Transaccion(
+                    cantidad=float(cantidad),
+                    id_cartera_enviado=usuario_actual.cartera.id,
+                    id_cartera_recibido=usuario_destino.cartera.id
+                )
+
+                db.session.add(transaccion)
+                db.session.commit()
+
+                error_transferencia = f"Transferencia realizada con éxito a {usuario_destino.nombre}"
 
     return render_template(
         "cuenta/transferir.html",
         usuario=usuario_actual,
-        tarjetas=tarjetas,
         error_transferencia=error_transferencia,
     )
 
+
 # ingresar 
 # =================================== INGRESAR DINERO ================================= #
+
+
 @main_bp.route("/ingresar", methods=["GET", "POST"])
-def ingresar():
+def ingresar_dinero():
     usuario_actual = obtener_usuario_actual()
-    if not usuario_actual or not usuario_actual.cartera:
-        return redirect(url_for("login"))
+    if not usuario_actual:
+        return redirect(url_for("auth.login"))
+
+    tarjetas = obtener_tarjetas_por_usuario(usuario_actual.id)
 
     error_transferencia = ""
+    error_tarjeta = ""
 
-    if request.method == "POST" and "ingresarcartera" in request.form:
-        cantidad_form = request.form.get("cantidad_transferir")
+    if request.method == "POST":
+        if "ingresartarjeta" in request.form:
+            try:
+                cantidad = Decimal(request.form.get("cantidad_transferir"))
+                id_tarjeta = request.form.get("tarjeta_destino")
 
-        # Convertir a Decimal y validar
-        try:
-            cantidad = Decimal(cantidad_form)
-            if cantidad <= 0:
-                raise ValueError("La cantidad debe ser mayor a 0")
-        except (ValueError, TypeError, InvalidOperation):
-            error_transferencia = "Cantidad inválida"
-            return render_template("cuenta/ingresar.html", usuario=usuario_actual, error_transferencia=error_transferencia)
+                if not id_tarjeta:
+                    error_tarjeta = "Debes seleccionar una tarjeta"
+                elif cantidad <= 0:
+                    error_tarjeta = "La cantidad debe ser mayor a 0"
+                elif cantidad > usuario_actual.cartera.cantidad:
+                    error_tarjeta = "No tienes suficiente dinero en tu cartera"
+                else:
+                    tarjeta = db.session.query(Tarjeta).join(TarjetaUsuario)\
+                        .filter(
+                            Tarjeta.id == int(id_tarjeta),
+                            TarjetaUsuario.id_usuario == usuario_actual.id
+                        ).first()
 
-        # Sumar a la cartera
-        usuario_actual.cartera.cantidad += cantidad
+                    if not tarjeta:
+                        error_tarjeta = "Tarjeta no encontrada o no es tuya"
+                    else:
+                        tarjeta.saldo = Decimal(tarjeta.saldo or 0)
+                        usuario_actual.cartera.cantidad -= cantidad
+                        tarjeta.saldo += cantidad
 
-        try:
-            db.session.commit()
-            error_transferencia = f"Ingreso de {cantidad:.2f} € realizado con éxito"
-        except Exception as e:
-            db.session.rollback()
-            error_transferencia = f"Error al ingresar el dinero: {str(e)}"
+                        transaccion = Transaccion(
+                            cantidad=float(cantidad),
+                            id_cartera_enviado=usuario_actual.cartera.id,
+                            id_cartera_recibido=usuario_actual.cartera.id
+                        )
 
-    return render_template("cuenta/ingresar.html", usuario=usuario_actual, error_transferencia=error_transferencia)
+                        db.session.add(transaccion)
+                        db.session.commit()
+
+                        error_tarjeta = (
+                            f"Éxito: Se transfirieron {cantidad:.2f} € "
+                            f"a la tarjeta **** **** **** {tarjeta.numero[-4:]}"
+                        )
+            except (InvalidOperation, TypeError):
+                error_tarjeta = "Cantidad inválida"
+            except Exception as e:
+                db.session.rollback()
+                error_tarjeta = f"Error al ingresar a la tarjeta: {str(e)}"
+
+    return render_template(
+        "cuenta/ingresar.html",
+        usuario=usuario_actual,
+        tarjetas=tarjetas,
+        error_transferencia=error_transferencia,
+        error_tarjeta=error_tarjeta
+    )
+
 
 
 # historial #
@@ -218,3 +260,44 @@ def historial():
         usuario=usuario_actual,
         historial=historial
     )
+
+# Tarjetas de el usuario
+
+
+@main_bp.route("/mis-tarjetas")
+def mis_tarjetas():
+    usuario_actual = obtener_usuario_actual()
+    if not usuario_actual:
+        return redirect(url_for("auth.login"))
+
+    # 🔹 IDs de tarjetas a las que tiene acceso este usuario
+    ids_tarjetas = db.session.query(TarjetaUsuario.id_tarjeta)\
+        .filter_by(id_usuario=usuario_actual.id)\
+        .distinct().all()
+    ids_tarjetas = [id[0] for id in ids_tarjetas]  # extraer de la tupla
+
+    if not ids_tarjetas:
+        tarjetas = []
+    else:
+        # 🔹 Traer solo las tarjetas
+        tarjetas_obj = db.session.query(Tarjeta).filter(Tarjeta.id.in_(ids_tarjetas)).all()
+
+        tarjetas = []
+        for tarjeta in tarjetas_obj:
+            caducidad_str = (
+                tarjeta.caducidad if isinstance(tarjeta.caducidad, str) 
+                else tarjeta.caducidad.strftime("%m/%Y") if tarjeta.caducidad else ""
+            )
+
+            tarjetas.append({
+                "id": tarjeta.id,
+                "numero": tarjeta.numero,
+                "cvc": tarjeta.cvc,
+                "caducidad": caducidad_str,
+                "saldo": float(tarjeta.saldo),
+                "propietario_id": tarjeta.propietario_id,          # dueño original
+                "propietario_nombre": tarjeta.propietario_nombre,  # dueño original
+                "propia": tarjeta.propietario_id == usuario_actual.id
+            })
+
+    return render_template("cuenta/mis-tarjetas.html", usuario=usuario_actual, tarjetas=tarjetas)

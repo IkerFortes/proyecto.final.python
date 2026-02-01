@@ -1,6 +1,7 @@
 from .cartera import Cartera
 from .recargar import Recargar
 from .tarjeta import Tarjeta
+from .tarjetausuario import TarjetaUsuario
 from .transaccion import Transaccion
 from .usuario import Usuario
 

@@ -1,0 +1,64 @@
+{% extends "cuenta/sidebar.html" %}
+
+{% block acount_content %}
+
+<h1 class="h3 mb-2 text-gray-800">Mis Tarjetas</h1>
+<p class="mb-4">Aquí puedes ver todas tus tarjetas propias y las que otros usuarios te han compartido, con su saldo.</p>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Tarjetas</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>Propietario</th>
+                        <th>Número</th>
+                        <th>Caducidad</th>
+                        <th>CVC</th>
+                        <th>Saldo (€)</th>
+                        <th>Tipo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tarjeta in tarjetas %}
+                    <tr>
+                        <td>{{ tarjeta.propietario_nombre }}</td>
+                        <td>{{ tarjeta.numero }}</td>
+                        <td>{{ tarjeta.caducidad }}</td>
+                        <td>{{ tarjeta.cvc }}</td>
+                        <td>{{ "%.2f"|format(tarjeta.saldo) }}</td>
+                        <td>
+                            {% if tarjeta.propietario_id == usuario.id %}
+                                Propia
+                            {% else %}
+                                Compartida
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts_block %}
+<!-- Bootstrap y DataTables -->
+<script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/datatables/jquery.dataTables.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/datatables/dataTables.bootstrap4.min.js') }}"></script>
+<script>
+    $(document).ready(function() {
+        $('#dataTable').DataTable({
+            "ordering": true,
+            "searching": true,
+            "pageLength": 10
+        });
+    });
+</script>
+{% endblock %}

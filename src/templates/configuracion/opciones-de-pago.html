@@ -46,7 +46,7 @@
 
   <div class="card shadow mb-4">
     <div class="card-header py-3">
-      <h6 class="m-0 font-weight-bold text-primary">Aqui puedes añadir o eliminar las tarjetas que tienes</h6>
+      <h6 class="m-0 font-weight-bold text-primary">Aqui puedes añadir o eliminar las tarjetas que has creado</h6>
     </div>
     <div class="card-body row">
 
@@ -68,6 +68,7 @@
                     <th>Número</th>
                     <th>Caducidad</th>
                     <th>CVC</th>
+                    <th>Borrar</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -77,6 +78,14 @@
                     <td>{{tarjeta.numero}}</td>
                     <td>{{tarjeta.caducidad}}</td>
                     <td>{{tarjeta.cvc}}</td>
+                    <td>
+                      <form action="{{ url_for('config.eliminar_tarjeta') }}" method="POST" style="display:inline;">
+                        <input type="hidden" name="tarjeta_id" value="{{ tarjeta.id }}">
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('¿Seguro que quieres eliminar esta tarjeta?');">
+                          <i class="fas fa-trash-alt"></i> Borrar
+                        </button>
+                      </form>
+                    </td>
                   </tr>
                   {% endfor %}
                 </tbody>
@@ -107,12 +116,12 @@
               <div class="mb-3 col-6 col-md-2">
                 <label class="small fw-bold mb-0" for="caducidad_tarjeta">Caducidad</label>
                 <div class="d-flex gap-1">
-                  <input class="form-control form-control-sm text-center" type="text" placeholder="DD"
-                    id="caducidad_tarjeta_dia" name="caducidad_tarjeta_dia" maxlength="2"
-                    value="{{ datos_previos.dia if datos_previos else '' }}" required>
                   <input class="form-control form-control-sm text-center" type="text" placeholder="MM"
                     id="caducidad_tarjeta_mes" name="caducidad_tarjeta_mes" maxlength="2"
                     value="{{ datos_previos.mes if datos_previos else '' }}" required>
+                  <input class="form-control form-control-sm text-center" type="text" placeholder="AA"
+                    id="caducidad_tarjeta_ano" name="caducidad_tarjeta_ano" maxlength="2"
+                    value="{{ datos_previos.ano if datos_previos else '' }}" required>
                 </div>
               </div>
 
@@ -138,19 +147,5 @@
     </div>
   </div>
 </div>
-
-{% endblock %}
-
-{% block scripts_block %}
-
-<!-- Bootstrap core JavaScript-->
-<script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
-
-<!-- Page level plugins -->
-<script src="{{ url_for('static', filename='vendor/datatables/jquery.dataTables.min.js') }}"></script>
-<script src="{{ url_for('static', filename='vendor/datatables/dataTables.bootstrap4.min.js') }}"></script>
-
-<!-- Page level custom scripts -->
-<script src="{{ url_for('static', filename='js/demo/datatables-demo.js') }}"></script>
 
 {% endblock %}

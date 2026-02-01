@@ -1,0 +1,39 @@
+{% extends "configuracion/sidebar.html" %}
+
+{% block config_content %}
+<h1 class="h3 mb-2 text-gray-800">Mis Tarjetas</h1>
+<p class="mb-4">Aquí puedes ver todas tus tarjetas y compartirlas con otros usuarios.</p>
+
+<!-- FORMULARIO PARA COMPARTIR TARJETA -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Compartir Tarjeta</h6>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('config.compartir_tarjeta') }}">
+            <div class="form-row align-items-end">
+                <div class="col-md-6 mb-2">
+                    <label for="tarjeta_select">Selecciona Tarjeta</label>
+                    <select class="form-control" id="tarjeta_select" name="tarjeta_id" required>
+                        {% for tarjeta in tarjetas %}
+                        <option value="{{ tarjeta.id }}">{{ tarjeta.propietario_nombre }} - **** **** **** {{ tarjeta.numero[-4:] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label for="usuario_input">Usuario a compartir</label>
+                    <input type="text" class="form-control" id="usuario_input" name="usuario_nombre" placeholder="Escribe el usuario" required>
+                </div>
+            </div>
+            <div class="mt-2">
+                <button type="submit" class="btn btn-primary btn-block">Compartir Tarjeta</button>
+            </div>
+        </form>
+
+        {% if mensaje %}
+        <div class="mt-3 alert alert-info">{{ mensaje }}</div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

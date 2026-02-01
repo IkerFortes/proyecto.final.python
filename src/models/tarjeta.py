@@ -11,6 +11,8 @@ class Tarjeta(db.Model):
     caducidad = db.Column(db.String(5), nullable=False)  # Formato MM/AA
     cvc = db.Column(db.Integer, nullable=False)
     propietario_nombre = db.Column(db.String(50), nullable=False)
-    id_usuario = db.Column(db.Integer, db.ForeignKey("USUARIOS.id", ondelete="CASCADE"))
+    saldo = db.Column(db.Float, default=0.0)
 
+    propietario_id = db.Column(db.Integer, db.ForeignKey("USUARIOS.id", ondelete="SET NULL"))
     propietario = db.relationship("Usuario", back_populates="tarjetas")
+

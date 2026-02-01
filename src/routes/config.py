@@ -145,65 +145,72 @@ def notificaciones():
 @config_bp.route("/opciones-de-pago")
 def opciones_de_pago():
     usuario_actual = obtener_usuario_actual()
-    tarjetas = obtener_tarjetas_por_usuario(usuario_actual.id)
+    tarjetas_query = Tarjeta.query.filter_by(propietario_id=usuario_actual.id).all()
+    tarjetas = []
+
+    for t in tarjetas_query:
+        propietario = Usuario.query.get(t.propietario_id)
+        tarjetas.append({
+            "id": t.id,
+            "numero": t.numero,
+            "caducidad": t.caducidad,
+            "cvc": t.cvc,
+            "propietario_nombre": t.propietario_nombre,
+        })
+
     return render_template("configuracion/opciones-de-pago.html", tarjetas=tarjetas)
 
 
-@config_bp.route("/anadir-tarjeta", methods=["GET", "POST"])
+
+@config_bp.route("/anadir-tarjeta", methods=["POST"])
 def anadir_tarjeta():
     usuario_actual = obtener_usuario_actual()
-    error_tarjeta = ""
-
-    if request.method == "POST":
-        propietario = request.form.get("propietario")
-        numero = request.form.get("numero")
-        caducidad = request.form.get("caducidad")
-        cvc = request.form.get("cvc")
-
-        if not all([propietario, numero, caducidad, cvc]):
-            error_tarjeta = "Todos los campos son obligatorios"
-        elif len(numero) != 16 or not numero.isdigit():
-            error_tarjeta = "Número de tarjeta inválido"
-        elif len(cvc) != 3 or not cvc.isdigit():
-            error_tarjeta = "CVC inválido"
-        else:
-            nueva_tarjeta = Tarjeta(
-                propietario_nombre=propietario,
-                numero=numero,
-                caducidad=caducidad,
-                cvc=int(cvc),
-                id_usuario=usuario_actual.id,
-            )
-            if registrada_tarjeta(nueva_tarjeta):
-                error_tarjeta = "Esta tarjeta ya está registrada"
-            else:
-                guardar_tarjeta_en_db(nueva_tarjeta)
-                render_template(
-        "configuracion/anadir-tarjeta.html",
-        usuario=usuario_actual,
-        error_tarjeta=error_tarjeta,
-    )
-    return render_template(
-        "configuracion/anadir-tarjeta.html",
-        usuario=usuario_actual,
-        error_tarjeta=error_tarjeta,
-    )
-
-
-# ================================== MIS TARJETAS ==================================
-
-@config_bp.route("/mis-tarjetas", methods=["GET", "POST"])
-def mis_tarjetas():
-    usuario_actual = obtener_usuario_actual()
-    tarjetas = obtener_tarjetas_por_usuario(usuario_actual.id)
     
-    # Para no depender de funciones inexistentes, solo mostramos tarjetas
-    return render_template(
-        "configuracion/mis-tarjetas.html",
-        tarjetas=tarjetas,
-        usuarios=[],  # opcional, no se comparte nada
-        mensaje=None
+    if not usuario_actual:
+        flash("Debes iniciar sesión para añadir una tarjeta.", "danger")
+        return redirect(url_for("auth.login"))
+
+    numero = request.form.get("numero_tarjeta")
+    mes = request.form.get("caducidad_tarjeta_mes")
+    ano = request.form.get("caducidad_tarjeta_ano")
+    cvc = request.form.get("cvc_tarjeta")
+    propietario = request.form.get("propietario_tarjeta")
+
+    if not all([propietario, numero, mes, ano, cvc]):
+        flash("Todos los campos son obligatorios.", "danger")
+        return redirect(url_for("config.opciones_de_pago"))
+
+    caducidad = f"{mes}/{ano}"
+
+    # Verificar si ya existe tarjeta con ese número
+    tarjeta_existente = Tarjeta.query.filter_by(numero=numero).first()
+    if tarjeta_existente:
+        flash("Esta tarjeta ya está registrada.", "danger")
+        return redirect(url_for("config.opciones_de_pago"))
+
+    # Crear tarjeta asociada al usuario actual
+    nueva_tarjeta = Tarjeta(
+        numero=numero,
+        caducidad=caducidad,
+        cvc=int(cvc),
+        saldo=0,
+        propietario_nombre=propietario, 
+        propietario_id=usuario_actual.id 
     )
+    db.session.add(nueva_tarjeta)
+    db.session.commit()
+
+    # Crear la relación en la tabla intermedia
+    from models import TarjetaUsuario
+    relacion = TarjetaUsuario(id_usuario=usuario_actual.id, id_tarjeta=nueva_tarjeta.id)
+    db.session.add(relacion)
+    db.session.commit()
+
+    flash("Tarjeta añadida correctamente.", "success")
+    return redirect(url_for("config.opciones_de_pago"))
+
+
+
 
 
 # ================================== ELIMINAR TARJETA ==================================
@@ -221,34 +228,59 @@ def eliminar_tarjeta():
             flash("Tarjeta no encontrada", "danger")
     else:
         flash("No se pudo eliminar la tarjeta", "danger")
-    return redirect(url_for("config.mis_tarjetas"))
+    return redirect(url_for("config.opciones_de_pago"))
 
 
-@config_bp.route("/compartir-tarjeta", methods=["POST"])
+# ================================== COMPARTIR TARJETAS ==================================
+
+@config_bp.route("/compartir-tarjeta", methods=["GET", "POST"])
 def compartir_tarjeta():
-    tarjeta_id = request.form.get("tarjeta_id")
-    usuario_nombre = request.form.get("usuario_nombre")
+    usuario_actual = obtener_usuario_actual()
+    tarjetas = obtener_tarjetas_por_usuario(usuario_actual.id)
 
-    if not tarjeta_id or not usuario_nombre:
-        mensaje = "Debes seleccionar una tarjeta y escribir un usuario"
-        return redirect(url_for("config.mis_tarjetas", mensaje=mensaje))
+    if request.method == "POST":
+        tarjeta_id = request.form.get("tarjeta_id")
+        usuario_nombre = request.form.get("usuario_nombre")
 
-    # Buscar usuario por nombre
-    usuario_destino = Usuario.query.filter_by(nombre=usuario_nombre).first()
-    if not usuario_destino:
-        mensaje = f"El usuario '{usuario_nombre}' no existe"
-        return render_template(
-            "configuracion/mis-tarjetas.html",
-            tarjetas=obtener_tarjetas_por_usuario(obtener_usuario_actual().id),
-            mensaje=mensaje
-        )
+        if not tarjeta_id or not usuario_nombre:
+            flash("Debes seleccionar una tarjeta y escribir un usuario", "danger")
+            return redirect(url_for("config.compartir_tarjeta"))
 
-    # Aquí tu lógica de compartir tarjeta
-    # Por ejemplo, podrías crear un registro en otra tabla de "tarjetas compartidas"
-    mensaje = f"Tarjeta compartida correctamente con {usuario_destino.nombre}"
+        # Buscar al usuario destino
+        usuario_destino = Usuario.query.filter_by(nombre=usuario_nombre).first()
+        if not usuario_destino:
+            flash(f"El usuario '{usuario_nombre}' no existe", "danger")
+            return redirect(url_for("config.compartir_tarjeta"))
+
+        # Buscar la tarjeta
+        tarjeta = Tarjeta.query.get(tarjeta_id)
+        if not tarjeta:
+            flash("La tarjeta seleccionada no existe", "danger")
+            return redirect(url_for("config.compartir_tarjeta"))
+
+        # ✅ Verificar que solo el propietario pueda compartir
+        if tarjeta.propietario_id != usuario_actual.id:
+            flash("Solo el propietario puede compartir esta tarjeta", "danger")
+            return redirect(url_for("config.compartir_tarjeta"))
+
+        # Verificar si ya está compartida
+        from models import TarjetaUsuario
+        existente = TarjetaUsuario.query.filter_by(
+            id_usuario=usuario_destino.id, id_tarjeta=tarjeta.id
+        ).first()
+
+        if existente:
+            flash("La tarjeta ya está compartida con este usuario.", "info")
+        else:
+            # Crear la relación sin tocar la tarjeta original
+            relacion = TarjetaUsuario(id_usuario=usuario_destino.id, id_tarjeta=tarjeta.id)
+            db.session.add(relacion)
+            db.session.commit()
+            flash(f"Tarjeta compartida correctamente con {usuario_destino.nombre}", "success")
+
+        return redirect(url_for("config.compartir_tarjeta"))
 
     return render_template(
-        "configuracion/mis-tarjetas.html",
-        tarjetas=obtener_tarjetas_por_usuario(obtener_usuario_actual().id),
-        mensaje=mensaje
+        "configuracion/compartir-tarjetas.html",
+        tarjetas=tarjetas
     )
