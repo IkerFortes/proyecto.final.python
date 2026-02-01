@@ -1,4 +1,11 @@
 <<<<<<< HEAD
+
+IMPORTANTE
+
+Para ejecutar este programa necesitas lo siguiente
+    -Tener Python instalado
+    -Tener flask instalado (puedes usar el comando python -m pip install flask para instalarlo)
+    -Tener instalado flask-sqlalchemy (puedes usar el comando python -m pip install flask-sqlalchemy para instalarlo)
 # 💳 Sistema de Gestión de Carteras y Tarjetas (SQLAlchemy 2026)
 
 Este proyecto implementa una arquitectura modular y robusta para la gestión de usuarios, carteras digitales, tarjetas de débito y transacciones financieras, utilizando **Python** y **SQLAlchemy ORM**.
