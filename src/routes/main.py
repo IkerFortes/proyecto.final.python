@@ -1,14 +1,17 @@
-from decimal import Decimal, InvalidOperation
-from flask import Blueprint, render_template, redirect, url_for, jsonify, request, flash
-from database import db
 from datetime import datetime
-from sqlalchemy import func
-from models import Transaccion, Usuario, Cartera
-from services import esta_autenticado, obtener_usuario_actual
-from utils import traducir_mes, obtener_datos_grafico_saldo_evolutivo
-from services import obtener_tarjetas_por_usuario
-from models import Transaccion, Usuario, Tarjeta, TarjetaUsuario  
 from decimal import Decimal, InvalidOperation
+
+from flask import Blueprint, render_template, redirect, url_for, jsonify, request
+from sqlalchemy import func
+
+from database import db
+from models import Transaccion, Usuario, Cartera, Tarjeta, TarjetaUsuario
+from services import (
+    esta_autenticado,
+    obtener_usuario_actual,
+    obtener_tarjetas_por_usuario
+)
+from utils import traducir_mes, obtener_datos_grafico_saldo_evolutivo
 
 
 main_bp = Blueprint("main", __name__)
@@ -16,6 +19,13 @@ main_bp = Blueprint("main", __name__)
 
 @main_bp.before_request
 def verificar_sesion():
+    """Verifica que el usuario esté autenticado antes de cada request.
+
+    Redirige al login si no hay sesión activa.
+    
+    Returns:
+        Response: Redirecciona al login si no hay sesión activa, None si está autenticado.
+    """
     if not esta_autenticado():
         return redirect(url_for("auth.login"))
 
@@ -23,29 +33,25 @@ def verificar_sesion():
 # =================================== PÁGINA PRINCIPAL ================================= #
 
 
-# Index #
 @main_bp.route("/")
 def index():
-    """Renderiza la página de inicio de la cuenta, mostrando los gastos mensuales del usuario.
+    """Renderiza la página de inicio mostrando los gastos mensuales del usuario.
 
-    Recupera el total de transacciones enviadas por el usuario en el mes y año actual.
-
-    Args:
-        None (espera parámetros de contexto estándar de Flask/Jinja si los hubiera)
+    Calcula la suma de las transacciones enviadas por el usuario
+    en el mes y año actual y obtiene el nombre del mes traducido al español.
 
     Returns:
-        render_template: La plantilla HTML para la página de inicio, pasando gastos y el mes actual.
+        Response: Renderiza la plantilla "cuenta/index.html" pasando:
+            gastos_mensuales (float): Total de gastos del mes.
+            mes_actual (str): Nombre del mes actual en español.
     """
-
     hoy = datetime.now()
     usuario_actual = obtener_usuario_actual()
 
-    # --- GASTOS MENSUALES ---
-    # Suma las transacciones ENVIADAS por el usuario en el mes y año actual
     gastos_mensuales = (
         db.session.query(func.sum(Transaccion.cantidad))
         .filter(
-            Transaccion.id_cartera_enviado == usuario_actual.cartera.id,  # type: ignore
+            Transaccion.id_cartera_enviado == usuario_actual.cartera.id,
             func.extract("month", Transaccion.fecha) == hoy.month,
             func.extract("year", Transaccion.fecha) == hoy.year,
         )
@@ -53,10 +59,7 @@ def index():
         or 0.0
     )
 
-    # Obtener el nombre del mes actual en español (ej. "enero")
-    # %B formatea el nombre completo del mes, y .capitalize() pone la primera en mayúscula
-    mes_actual = hoy.strftime("%B").capitalize()
-    mes_actual = traducir_mes(mes_actual)
+    mes_actual = traducir_mes(hoy.strftime("%B").capitalize())
 
     return render_template(
         "cuenta/index.html",
@@ -65,7 +68,6 @@ def index():
     )
 
 
-# Para cargar el gráfico (la que llamará el JS)
 @main_bp.route("/api/grafico/<rango>")
 def api_grafico(rango):
     """Endpoint API para obtener datos del gráfico de evolución de saldo.
@@ -73,28 +75,34 @@ def api_grafico(rango):
     Requiere autenticación. Devuelve datos formateados en JSON para ser consumidos por JavaScript.
 
     Args:
-        rango (str): El rango de tiempo para el cual obtener los datos (ej. 'semana', 'mes', 'año').
+        rango (str): Rango de tiempo para el cual obtener los datos ('semana', 'mes', 'año').
 
     Returns:
         jsonify: Un objeto JSON con los datos del gráfico o un mensaje de error 401 si no está autenticado.
     """
-
     if not esta_autenticado():
         return jsonify({"error": "No autorizado"}), 401
 
     usuario_actual = obtener_usuario_actual()
-
-    datos = obtener_datos_grafico_saldo_evolutivo(usuario_actual.cartera.id, rango)  # type: ignore
+    datos = obtener_datos_grafico_saldo_evolutivo(usuario_actual.cartera.id, rango)
     return jsonify(datos)
-
-
-# =================================== PÁGINA PRINCIPAL ================================= #
 
 
 # =================================== TRANSFERENCIAS ================================= #
 
+
 @main_bp.route("/transferir", methods=["GET", "POST"])
 def transferencias():
+    """Permite al usuario transferir dinero a otro usuario.
+
+    Valida cantidad, existencia del usuario destino y saldo suficiente antes de realizar la transacción.
+    Registra la transacción en la base de datos y muestra un mensaje de éxito o error.
+
+    Returns:
+        Response: Renderiza la plantilla "cuenta/transferir.html" pasando:
+            usuario (Usuario): Usuario actualmente autenticado.
+            error_transferencia (str): Mensaje de error o éxito de la transferencia.
+    """
     usuario_actual = obtener_usuario_actual()
     if not usuario_actual or not usuario_actual.cartera:
         return redirect(url_for("auth.login"))
@@ -119,7 +127,6 @@ def transferencias():
             error_transferencia = "La cantidad debe ser mayor que 0"
         else:
             usuario_destino = Usuario.query.filter_by(nombre=nombre_destino).first()
-
             if not usuario_destino or not usuario_destino.cartera:
                 error_transferencia = "El usuario destino no existe"
             elif cantidad > usuario_actual.cartera.cantidad:
@@ -136,7 +143,6 @@ def transferencias():
 
                 db.session.add(transaccion)
                 db.session.commit()
-
                 error_transferencia = f"Transferencia realizada con éxito a {usuario_destino.nombre}"
 
     return render_template(
@@ -146,23 +152,60 @@ def transferencias():
     )
 
 
-# ingresar 
 # =================================== INGRESAR DINERO ================================= #
 
 
 @main_bp.route("/ingresar", methods=["GET", "POST"])
 def ingresar_dinero():
+    """
+    Permite al usuario ingresar dinero a su cartera o a una de sus tarjetas.
+
+    Muestra la interfaz con los formularios y gestiona las operaciones
+    según el botón presionado.
+
+    Args:
+        Ninguno (Flask maneja request y contexto automáticamente)
+
+    Returns:
+        render_template: La plantilla 'cuenta/ingresar.html' con los datos
+        del usuario, sus tarjetas y posibles mensajes de error o éxito.
+    """
     usuario_actual = obtener_usuario_actual()
     if not usuario_actual:
         return redirect(url_for("auth.login"))
 
     tarjetas = obtener_tarjetas_por_usuario(usuario_actual.id)
-
     error_transferencia = ""
     error_tarjeta = ""
 
     if request.method == "POST":
-        if "ingresartarjeta" in request.form:
+        # ----------------- INGRESAR A LA CARTERA -----------------
+        if "ingresarcartera" in request.form:
+            try:
+                cantidad = Decimal(request.form.get("cantidad_transferir"))
+                if cantidad <= 0:
+                    error_transferencia = "La cantidad debe ser mayor a 0"
+                else:
+                    usuario_actual.cartera.cantidad += cantidad
+
+                    # Registrar la transacción
+                    transaccion = Transaccion(
+                        cantidad=float(cantidad),
+                        id_cartera_enviado=usuario_actual.cartera.id,
+                        id_cartera_recibido=usuario_actual.cartera.id
+                    )
+
+                    db.session.add(transaccion)
+                    db.session.commit()
+                    error_transferencia = f"Éxito: Se ingresaron {cantidad:.2f} € a tu cartera"
+            except (InvalidOperation, TypeError):
+                error_transferencia = "Cantidad inválida"
+            except Exception as e:
+                db.session.rollback()
+                error_transferencia = f"Error al ingresar dinero: {str(e)}"
+
+        # ----------------- INGRESAR A TARJETA -----------------
+        elif "ingresartarjeta" in request.form:
             try:
                 cantidad = Decimal(request.form.get("cantidad_transferir"))
                 id_tarjeta = request.form.get("tarjeta_destino")
@@ -215,40 +258,51 @@ def ingresar_dinero():
     )
 
 
+# =================================== HISTORIAL ================================= #
 
-# historial #
+
 @main_bp.route("/historial")
 def historial():
-    """Renderiza la página del historial de transacciones del usuario."""
+    """Renderiza la página del historial de transacciones del usuario.
+
+    Recupera todas las transacciones donde el usuario es emisor o receptor,
+    mostrando tipo de transacción, usuario contrario, fecha y cantidad.
+
+    Returns:
+        Response: Renderiza la plantilla "cuenta/historial.html" pasando:
+            usuario (Usuario): Usuario actualmente autenticado.
+            historial (list): Lista de transacciones con información para mostrar en tabla.
+    """
     if not esta_autenticado():
-        return redirect(url_for("login"))
+        return redirect(url_for("auth.login"))
 
     usuario_actual = obtener_usuario_actual()
-    cartera_id = usuario_actual.cartera.id  # type: ignore
+    cartera_id = usuario_actual.cartera.id
 
-    # Obtener todas las transacciones donde el usuario sea emisor o receptor
     transacciones = (
         db.session.query(Transaccion)
         .filter(
-            (Transaccion.id_cartera_enviado == cartera_id) |
-            (Transaccion.id_cartera_recibido == cartera_id)
+            (Transaccion.id_cartera_enviado == cartera_id)
+            | (Transaccion.id_cartera_recibido == cartera_id)
         )
         .order_by(Transaccion.fecha.desc())
         .all()
     )
 
-    # Preparar datos para la tabla
-    historial = []
+    historial_data = []
     for t in transacciones:
         tipo = "Enviado" if t.id_cartera_enviado == cartera_id else "Recibido"
         otra_parte_id = t.id_cartera_recibido if tipo == "Enviado" else t.id_cartera_enviado
 
-        # Buscar el nombre del usuario receptor/emisor
-        otra_cartera = db.session.query(Usuario).join(Usuario.cartera)\
-            .filter(Usuario.cartera.has(id=otra_parte_id)).first()
+        otra_cartera = (
+            db.session.query(Usuario)
+            .join(Usuario.cartera)
+            .filter(Usuario.cartera.has(id=otra_parte_id))
+            .first()
+        )
         otra_parte_nombre = otra_cartera.nombre if otra_cartera else "Desconocido"
 
-        historial.append({
+        historial_data.append({
             "fecha": t.fecha.strftime("%d/%m/%Y %H:%M"),
             "tipo": tipo,
             "usuario": otra_parte_nombre,
@@ -258,34 +312,44 @@ def historial():
     return render_template(
         "cuenta/historial.html",
         usuario=usuario_actual,
-        historial=historial
+        historial=historial_data
     )
 
-# Tarjetas de el usuario
+
+# =================================== MIS TARJETAS ================================= #
 
 
 @main_bp.route("/mis-tarjetas")
 def mis_tarjetas():
+    """Muestra todas las tarjetas asociadas al usuario actual.
+
+    Recupera las tarjetas a las que el usuario tiene acceso, incluyendo tarjetas propias y compartidas,
+    y devuelve información de cada tarjeta para renderizar en la vista.
+
+    Returns:
+        Response: Renderiza la plantilla "cuenta/mis-tarjetas.html" pasando:
+            usuario (Usuario): Usuario actualmente autenticado.
+            tarjetas (list): Lista de diccionarios con información de cada tarjeta.
+    """
     usuario_actual = obtener_usuario_actual()
     if not usuario_actual:
         return redirect(url_for("auth.login"))
 
-    # 🔹 IDs de tarjetas a las que tiene acceso este usuario
-    ids_tarjetas = db.session.query(TarjetaUsuario.id_tarjeta)\
-        .filter_by(id_usuario=usuario_actual.id)\
-        .distinct().all()
-    ids_tarjetas = [id[0] for id in ids_tarjetas]  # extraer de la tupla
+    ids_tarjetas = (
+        db.session.query(TarjetaUsuario.id_tarjeta)
+        .filter_by(id_usuario=usuario_actual.id)
+        .distinct()
+        .all()
+    )
+    ids_tarjetas = [id[0] for id in ids_tarjetas]
 
-    if not ids_tarjetas:
-        tarjetas = []
-    else:
-        # 🔹 Traer solo las tarjetas
+    tarjetas = []
+    if ids_tarjetas:
         tarjetas_obj = db.session.query(Tarjeta).filter(Tarjeta.id.in_(ids_tarjetas)).all()
 
-        tarjetas = []
         for tarjeta in tarjetas_obj:
             caducidad_str = (
-                tarjeta.caducidad if isinstance(tarjeta.caducidad, str) 
+                tarjeta.caducidad if isinstance(tarjeta.caducidad, str)
                 else tarjeta.caducidad.strftime("%m/%Y") if tarjeta.caducidad else ""
             )
 
@@ -295,8 +359,8 @@ def mis_tarjetas():
                 "cvc": tarjeta.cvc,
                 "caducidad": caducidad_str,
                 "saldo": float(tarjeta.saldo),
-                "propietario_id": tarjeta.propietario_id,          # dueño original
-                "propietario_nombre": tarjeta.propietario_nombre,  # dueño original
+                "propietario_id": tarjeta.propietario_id,
+                "propietario_nombre": tarjeta.propietario_nombre,
                 "propia": tarjeta.propietario_id == usuario_actual.id
             })
 

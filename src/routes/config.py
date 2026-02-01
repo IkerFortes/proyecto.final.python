@@ -1,83 +1,64 @@
 # routes/config.py
 from flask import Blueprint, render_template, redirect, url_for, flash, request
+from werkzeug.security import generate_password_hash, check_password_hash
 from database import db
-from models import Usuario
-from models import Tarjeta
+from models import Usuario, Tarjeta, TarjetaUsuario
 from services import (
     esta_autenticado,
     obtener_usuario_actual,
-    registrada_tarjeta,
-    guardar_tarjeta_en_db,
     obtener_tarjetas_por_usuario
 )
-
-
-from werkzeug.security import generate_password_hash, check_password_hash
-
-from services import obtener_tarjetas_por_usuario
 from utils import validar_datos_tarjeta_form
 
-# Creamos el Blueprint
+# ================================== Blueprint ==================================
 config_bp = Blueprint("config", __name__, url_prefix="/configuracion")
 
-# Middleware para proteger todas las rutas de este archivo de un solo golpe
 
-
+# =============================== Middleware =====================================
 @config_bp.before_request
 def verificar_sesion():
-    """Verifica si el usuario está autenticado antes de cada solicitud en este blueprint.
+    """
+    Verifica si el usuario está autenticado antes de cada solicitud.
 
-    Si el usuario no está logueado, lo redirige a la página de inicio de sesión.
-
-    Args:
-        None (Esta función es un hook de Flask, no recibe argumentos explícitos)
+    Redirige a la página de login si no hay sesión activa.
 
     Returns:
-        redirect or None: Una redirección a la página de login si no hay sesión,
-                         o None para continuar con la solicitud si está autenticado.
+        redirect or None: Redirección a login o None para continuar la solicitud.
     """
-
     if not esta_autenticado():
         return redirect(url_for("auth.login"))
 
 
-# =================================== CUENTA ================================= #
-
-
+# =============================== CUENTA ========================================
 @config_bp.route("cuenta")
 def cuenta():
-    """Renderiza la página principal de la cuenta del usuario.
-
-    Args:
-        None (espera parámetros de contexto estándar de Flask/Jinja si los hubiera)
+    """
+    Renderiza la página principal de la cuenta del usuario.
 
     Returns:
-        render_template: La plantilla HTML para la página de la cuenta.
+        render_template: Plantilla de la cuenta del usuario.
     """
-
     return render_template("configuracion/cuenta.html")
 
 
 @config_bp.route("cuenta/actualizar_email", methods=["POST"])
 def actualizar_email():
-    """Actualiza el correo electrónico del usuario actual.
+    """
+    Actualiza el correo electrónico del usuario actual.
 
-    Args:
-        None (explícito en la función, pero espera datos de formulario en 'request')
+    Verifica que el email no esté registrado por otro usuario y tenga formato válido.
 
     Returns:
-        redirect: Una redirección a la página de la cuenta.
+        redirect: Redirección a la página de la cuenta.
     """
-
     nuevo_email = request.form.get("nuevo_email")
     usuario_actual = obtener_usuario_actual()
 
     if nuevo_email and "@" in nuevo_email:
-        # Verificar si el email ya lo tiene otro usuario
         existe = Usuario.query.filter_by(gmail=nuevo_email).first()
         if existe:
             if nuevo_email == usuario_actual.gmail:  # type: ignore
-                flash("Ese correo ya lo estas usando.", "danger")
+                flash("Ese correo ya lo estás usando.", "danger")
             else:
                 flash("Ese correo ya está registrado por otro usuario.", "danger")
         else:
@@ -92,21 +73,19 @@ def actualizar_email():
 
 @config_bp.route("cuenta/actualizar_contrasena", methods=["POST"])
 def actualizar_contrasena():
-    """Actualiza la contraseña del usuario actual tras verificar la anterior.
+    """
+    Actualiza la contraseña del usuario actual tras verificar la anterior.
 
-    Args:
-        None (explícito en la función, pero espera datos de formulario en 'request')
+    Verifica que la contraseña actual coincida y que la nueva sea confirmada correctamente.
 
     Returns:
-        redirect: Una redirección a la página de la cuenta.
+        redirect: Redirección a la página de la cuenta.
     """
-
     pass_actual = request.form.get("pass_actual")
     pass_nuevo = request.form.get("pass_nuevo")
     pass_confirmar = request.form.get("pass_confirmar")
     usuario_actual = obtener_usuario_actual()
 
-    # Verificar la contraseña actual (suponiendo que usaste generate_password_hash al crear al usuario)
     if pass_nuevo == pass_confirmar:
         if check_password_hash(usuario_actual.contrasena, pass_actual):  # type: ignore
             usuario_actual.contrasena = generate_password_hash(pass_nuevo)  # type: ignore
@@ -115,35 +94,32 @@ def actualizar_contrasena():
         else:
             flash("La contraseña actual es incorrecta.", "danger")
     else:
-        flash("La contraseña no cohincide.", "danger")
+        flash("La contraseña no coincide.", "danger")
 
     return redirect(url_for(".cuenta"))
 
 
-# =================================== CUENTA ================================= #
-
-
+# ============================= NOTIFICACIONES ===================================
 @config_bp.route("notificaciones")
 def notificaciones():
-    """Renderiza la página de notificaciones.
-
-    Args:
-        None (espera parámetros de contexto estándar de Flask/Jinja si los hubiera)
+    """
+    Renderiza la página de notificaciones del usuario.
 
     Returns:
-        render_template: La plantilla HTML para la página de notificaciones.
+        render_template: Plantilla de notificaciones.
     """
-
     return render_template("configuracion/notificaciones.html")
 
 
-
-
-
-# ================================== OPCIONES DE PAGO ==================================
-
+# ============================ OPCIONES DE PAGO ==================================
 @config_bp.route("/opciones-de-pago")
 def opciones_de_pago():
+    """
+    Muestra todas las tarjetas asociadas al usuario actual.
+
+    Returns:
+        render_template: Plantilla con las tarjetas del usuario.
+    """
     usuario_actual = obtener_usuario_actual()
     tarjetas_query = Tarjeta.query.filter_by(propietario_id=usuario_actual.id).all()
     tarjetas = []
@@ -161,11 +137,19 @@ def opciones_de_pago():
     return render_template("configuracion/opciones-de-pago.html", tarjetas=tarjetas)
 
 
-
 @config_bp.route("/anadir-tarjeta", methods=["POST"])
 def anadir_tarjeta():
+    """
+    Añade una nueva tarjeta al usuario actual.
+
+    Valida que todos los campos estén completos, que la tarjeta no exista,
+    y crea la relación con el usuario en la tabla intermedia.
+
+    Returns:
+        redirect: Redirección a la página de opciones de pago.
+    """
     usuario_actual = obtener_usuario_actual()
-    
+
     if not usuario_actual:
         flash("Debes iniciar sesión para añadir una tarjeta.", "danger")
         return redirect(url_for("auth.login"))
@@ -181,27 +165,22 @@ def anadir_tarjeta():
         return redirect(url_for("config.opciones_de_pago"))
 
     caducidad = f"{mes}/{ano}"
-
-    # Verificar si ya existe tarjeta con ese número
     tarjeta_existente = Tarjeta.query.filter_by(numero=numero).first()
     if tarjeta_existente:
         flash("Esta tarjeta ya está registrada.", "danger")
         return redirect(url_for("config.opciones_de_pago"))
 
-    # Crear tarjeta asociada al usuario actual
     nueva_tarjeta = Tarjeta(
         numero=numero,
         caducidad=caducidad,
         cvc=int(cvc),
         saldo=0,
-        propietario_nombre=propietario, 
-        propietario_id=usuario_actual.id 
+        propietario_nombre=propietario,
+        propietario_id=usuario_actual.id
     )
     db.session.add(nueva_tarjeta)
     db.session.commit()
 
-    # Crear la relación en la tabla intermedia
-    from models import TarjetaUsuario
     relacion = TarjetaUsuario(id_usuario=usuario_actual.id, id_tarjeta=nueva_tarjeta.id)
     db.session.add(relacion)
     db.session.commit()
@@ -210,13 +189,14 @@ def anadir_tarjeta():
     return redirect(url_for("config.opciones_de_pago"))
 
 
-
-
-
-# ================================== ELIMINAR TARJETA ==================================
-
 @config_bp.route("/eliminar-tarjeta", methods=["POST"])
 def eliminar_tarjeta():
+    """
+    Elimina una tarjeta seleccionada por el usuario.
+
+    Returns:
+        redirect: Redirección a la página de opciones de pago.
+    """
     tarjeta_id = request.form.get("tarjeta_id")
     if tarjeta_id:
         t = Tarjeta.query.get(tarjeta_id)
@@ -231,10 +211,17 @@ def eliminar_tarjeta():
     return redirect(url_for("config.opciones_de_pago"))
 
 
-# ================================== COMPARTIR TARJETAS ==================================
-
+# ============================ COMPARTIR TARJETAS ================================
 @config_bp.route("/compartir-tarjeta", methods=["GET", "POST"])
 def compartir_tarjeta():
+    """
+    Permite al propietario compartir una tarjeta con otro usuario.
+
+    Valida que solo el propietario pueda compartir y que la relación no exista previamente.
+
+    Returns:
+        render_template or redirect: Página de compartir tarjetas o redirección tras acción.
+    """
     usuario_actual = obtener_usuario_actual()
     tarjetas = obtener_tarjetas_por_usuario(usuario_actual.id)
 
@@ -246,25 +233,20 @@ def compartir_tarjeta():
             flash("Debes seleccionar una tarjeta y escribir un usuario", "danger")
             return redirect(url_for("config.compartir_tarjeta"))
 
-        # Buscar al usuario destino
         usuario_destino = Usuario.query.filter_by(nombre=usuario_nombre).first()
         if not usuario_destino:
             flash(f"El usuario '{usuario_nombre}' no existe", "danger")
             return redirect(url_for("config.compartir_tarjeta"))
 
-        # Buscar la tarjeta
         tarjeta = Tarjeta.query.get(tarjeta_id)
         if not tarjeta:
             flash("La tarjeta seleccionada no existe", "danger")
             return redirect(url_for("config.compartir_tarjeta"))
 
-        # ✅ Verificar que solo el propietario pueda compartir
         if tarjeta.propietario_id != usuario_actual.id:
             flash("Solo el propietario puede compartir esta tarjeta", "danger")
             return redirect(url_for("config.compartir_tarjeta"))
 
-        # Verificar si ya está compartida
-        from models import TarjetaUsuario
         existente = TarjetaUsuario.query.filter_by(
             id_usuario=usuario_destino.id, id_tarjeta=tarjeta.id
         ).first()
@@ -272,7 +254,6 @@ def compartir_tarjeta():
         if existente:
             flash("La tarjeta ya está compartida con este usuario.", "info")
         else:
-            # Crear la relación sin tocar la tarjeta original
             relacion = TarjetaUsuario(id_usuario=usuario_destino.id, id_tarjeta=tarjeta.id)
             db.session.add(relacion)
             db.session.commit()
