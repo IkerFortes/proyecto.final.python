@@ -6,6 +6,6 @@ import os
 db = SQLAlchemy()
 
 # Ruta para la carpeta 'data' (útil para referencia en otros scripts)
-DATA_DIR = "data"
+DATA_DIR = "instance"
 DB_FILE_NAME = "proyecto.db"
 DB_PATH = os.path.join(os.getcwd(), DATA_DIR, DB_FILE_NAME)

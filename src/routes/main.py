@@ -7,7 +7,7 @@ from models import Transaccion, Usuario, Cartera
 from services import esta_autenticado, obtener_usuario_actual
 from utils import traducir_mes, obtener_datos_grafico_saldo_evolutivo
 from services import obtener_tarjetas_por_usuario
-from models import Transaccion, Usuario, Tarjeta, TarjetaUsuario  
+from models import Transaccion, Usuario, Tarjeta, TarjetaUsuario
 from decimal import Decimal, InvalidOperation
 
 
@@ -43,9 +43,13 @@ def index():
     # --- GASTOS MENSUALES ---
     # Suma las transacciones ENVIADAS por el usuario en el mes y año actual
     gastos_mensuales = (
-        db.session.query(func.sum(Transaccion.cantidad))
+        db.session.query(
+            func.round(
+                func.sum(Transaccion.cantidad), 2
+            )  # Redondeo a 2 decimales en SQL
+        )
         .filter(
-            Transaccion.id_cartera_enviado == usuario_actual.cartera.id,  # type: ignore
+            Transaccion.id_cartera_enviado == usuario_actual.cartera.id,
             func.extract("month", Transaccion.fecha) == hoy.month,
             func.extract("year", Transaccion.fecha) == hoy.year,
         )
@@ -93,6 +97,7 @@ def api_grafico(rango):
 
 # =================================== TRANSFERENCIAS ================================= #
 
+
 @main_bp.route("/transferir", methods=["GET", "POST"])
 def transferencias():
     usuario_actual = obtener_usuario_actual()
@@ -100,6 +105,29 @@ def transferencias():
         return redirect(url_for("auth.login"))
 
     error_transferencia = ""
+    hoy = datetime.now()
+
+    # --- GASTOS MENSUALES ---
+    # Suma las transacciones ENVIADAS por el usuario en el mes y año actual
+    gastos_mensuales = (
+        db.session.query(
+            func.round(
+                func.sum(Transaccion.cantidad), 2
+            )  # Redondeo a 2 decimales en SQL
+        )
+        .filter(
+            Transaccion.id_cartera_enviado == usuario_actual.cartera.id,
+            func.extract("month", Transaccion.fecha) == hoy.month,
+            func.extract("year", Transaccion.fecha) == hoy.year,
+        )
+        .scalar()
+        or 0.0
+    )
+
+    # Obtener el nombre del mes actual en español (ej. "enero")
+    # %B formatea el nombre completo del mes, y .capitalize() pone la primera en mayúscula
+    mes_actual = hoy.strftime("%B").capitalize()
+    mes_actual = traducir_mes(mes_actual)
 
     if request.method == "POST":
         nombre_destino = request.form.get("usu_transferir")
@@ -131,22 +159,26 @@ def transferencias():
                 transaccion = Transaccion(
                     cantidad=float(cantidad),
                     id_cartera_enviado=usuario_actual.cartera.id,
-                    id_cartera_recibido=usuario_destino.cartera.id
+                    id_cartera_recibido=usuario_destino.cartera.id,
                 )
 
                 db.session.add(transaccion)
                 db.session.commit()
 
-                error_transferencia = f"Transferencia realizada con éxito a {usuario_destino.nombre}"
+                error_transferencia = (
+                    f"Transferencia realizada con éxito a {usuario_destino.nombre}"
+                )
 
     return render_template(
         "cuenta/transferir.html",
         usuario=usuario_actual,
+        mes_actual=mes_actual,
+        gastos_mensuales=gastos_mensuales,
         error_transferencia=error_transferencia,
     )
 
 
-# ingresar 
+# ingresar
 # =================================== INGRESAR DINERO ================================= #
 
 
@@ -174,11 +206,15 @@ def ingresar_dinero():
                 elif cantidad > usuario_actual.cartera.cantidad:
                     error_tarjeta = "No tienes suficiente dinero en tu cartera"
                 else:
-                    tarjeta = db.session.query(Tarjeta).join(TarjetaUsuario)\
+                    tarjeta = (
+                        db.session.query(Tarjeta)
+                        .join(TarjetaUsuario)
                         .filter(
                             Tarjeta.id == int(id_tarjeta),
-                            TarjetaUsuario.id_usuario == usuario_actual.id
-                        ).first()
+                            TarjetaUsuario.id_usuario == usuario_actual.id,
+                        )
+                        .first()
+                    )
 
                     if not tarjeta:
                         error_tarjeta = "Tarjeta no encontrada o no es tuya"
@@ -190,7 +226,7 @@ def ingresar_dinero():
                         transaccion = Transaccion(
                             cantidad=float(cantidad),
                             id_cartera_enviado=usuario_actual.cartera.id,
-                            id_cartera_recibido=usuario_actual.cartera.id
+                            id_cartera_recibido=usuario_actual.cartera.id,
                         )
 
                         db.session.add(transaccion)
@@ -211,9 +247,8 @@ def ingresar_dinero():
         usuario=usuario_actual,
         tarjetas=tarjetas,
         error_transferencia=error_transferencia,
-        error_tarjeta=error_tarjeta
+        error_tarjeta=error_tarjeta,
     )
-
 
 
 # historial #
@@ -230,8 +265,8 @@ def historial():
     transacciones = (
         db.session.query(Transaccion)
         .filter(
-            (Transaccion.id_cartera_enviado == cartera_id) |
-            (Transaccion.id_cartera_recibido == cartera_id)
+            (Transaccion.id_cartera_enviado == cartera_id)
+            | (Transaccion.id_cartera_recibido == cartera_id)
         )
         .order_by(Transaccion.fecha.desc())
         .all()
@@ -241,25 +276,32 @@ def historial():
     historial = []
     for t in transacciones:
         tipo = "Enviado" if t.id_cartera_enviado == cartera_id else "Recibido"
-        otra_parte_id = t.id_cartera_recibido if tipo == "Enviado" else t.id_cartera_enviado
+        otra_parte_id = (
+            t.id_cartera_recibido if tipo == "Enviado" else t.id_cartera_enviado
+        )
 
         # Buscar el nombre del usuario receptor/emisor
-        otra_cartera = db.session.query(Usuario).join(Usuario.cartera)\
-            .filter(Usuario.cartera.has(id=otra_parte_id)).first()
+        otra_cartera = (
+            db.session.query(Usuario)
+            .join(Usuario.cartera)
+            .filter(Usuario.cartera.has(id=otra_parte_id))
+            .first()
+        )
         otra_parte_nombre = otra_cartera.nombre if otra_cartera else "Desconocido"
 
-        historial.append({
-            "fecha": t.fecha.strftime("%d/%m/%Y %H:%M"),
-            "tipo": tipo,
-            "usuario": otra_parte_nombre,
-            "cantidad": f"{t.cantidad:.2f} €"
-        })
+        historial.append(
+            {
+                "fecha": t.fecha.strftime("%d/%m/%Y %H:%M"),
+                "tipo": tipo,
+                "usuario": otra_parte_nombre,
+                "cantidad": f"{t.cantidad:.2f} €",
+            }
+        )
 
     return render_template(
-        "cuenta/historial.html",
-        usuario=usuario_actual,
-        historial=historial
+        "cuenta/historial.html", usuario=usuario_actual, historial=historial
     )
+
 
 # Tarjetas de el usuario
 
@@ -271,33 +313,43 @@ def mis_tarjetas():
         return redirect(url_for("auth.login"))
 
     # 🔹 IDs de tarjetas a las que tiene acceso este usuario
-    ids_tarjetas = db.session.query(TarjetaUsuario.id_tarjeta)\
-        .filter_by(id_usuario=usuario_actual.id)\
-        .distinct().all()
+    ids_tarjetas = (
+        db.session.query(TarjetaUsuario.id_tarjeta)
+        .filter_by(id_usuario=usuario_actual.id)
+        .distinct()
+        .all()
+    )
     ids_tarjetas = [id[0] for id in ids_tarjetas]  # extraer de la tupla
 
     if not ids_tarjetas:
         tarjetas = []
     else:
         # 🔹 Traer solo las tarjetas
-        tarjetas_obj = db.session.query(Tarjeta).filter(Tarjeta.id.in_(ids_tarjetas)).all()
+        tarjetas_obj = (
+            db.session.query(Tarjeta).filter(Tarjeta.id.in_(ids_tarjetas)).all()
+        )
 
         tarjetas = []
         for tarjeta in tarjetas_obj:
             caducidad_str = (
-                tarjeta.caducidad if isinstance(tarjeta.caducidad, str) 
+                tarjeta.caducidad
+                if isinstance(tarjeta.caducidad, str)
                 else tarjeta.caducidad.strftime("%m/%Y") if tarjeta.caducidad else ""
             )
 
-            tarjetas.append({
-                "id": tarjeta.id,
-                "numero": tarjeta.numero,
-                "cvc": tarjeta.cvc,
-                "caducidad": caducidad_str,
-                "saldo": float(tarjeta.saldo),
-                "propietario_id": tarjeta.propietario_id,          # dueño original
-                "propietario_nombre": tarjeta.propietario_nombre,  # dueño original
-                "propia": tarjeta.propietario_id == usuario_actual.id
-            })
+            tarjetas.append(
+                {
+                    "id": tarjeta.id,
+                    "numero": tarjeta.numero,
+                    "cvc": tarjeta.cvc,
+                    "caducidad": caducidad_str,
+                    "saldo": float(tarjeta.saldo),
+                    "propietario_id": tarjeta.propietario_id,  # dueño original
+                    "propietario_nombre": tarjeta.propietario_nombre,  # dueño original
+                    "propia": tarjeta.propietario_id == usuario_actual.id,
+                }
+            )
 
-    return render_template("cuenta/mis-tarjetas.html", usuario=usuario_actual, tarjetas=tarjetas)
+    return render_template(
+        "cuenta/mis-tarjetas.html", usuario=usuario_actual, tarjetas=tarjetas
+    )

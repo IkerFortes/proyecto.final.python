@@ -12,7 +12,9 @@ class Tarjeta(db.Model):
     cvc = db.Column(db.Integer, nullable=False)
     propietario_nombre = db.Column(db.String(50), nullable=False)
     saldo = db.Column(db.Float, default=0.0)
+    # saldo = db.Column(db.Numeric(10, 2), default=0.0) # Asegúra
 
-    propietario_id = db.Column(db.Integer, db.ForeignKey("USUARIOS.id", ondelete="SET NULL"))
+    propietario_id = db.Column(
+        db.Integer, db.ForeignKey("USUARIOS.id", ondelete="SET NULL")
+    )
     propietario = db.relationship("Usuario", back_populates="tarjetas")
-

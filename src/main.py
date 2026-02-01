@@ -1,7 +1,8 @@
-import os
-import services
+from app import create_app
 
-# Asegúrate de importar 'engine' para poder cerrarlo al final
-from database import DB_PATH
-from app import app
+# Creamos la instancia de la aplicación
+app = create_app()
 
+if __name__ == "__main__":
+    # El servidor solo corre si este archivo se ejecuta directamente
+    app.run(debug=True, port=5000)
