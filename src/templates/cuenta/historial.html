@@ -60,7 +60,7 @@
                         </td>
                         <td>{{ t.usuario }}</td>
                         <!-- Coloreamos la cantidad según si es entrada (+) o salida (-) -->
-                        {% if t.tipo.lower() == 'entrada' or t.tipo.lower() == 'ingreso' or t.tipo.lower() == 'recarga'
+                        {% if t.tipo.lower() == 'recibido'
                         %}
                         <td class="text-success font-weight-bold">+ {{ t.cantidad }} VTC</td>
                         {% else %}

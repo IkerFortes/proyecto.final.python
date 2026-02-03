@@ -4,6 +4,7 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, render_template, redirect, url_for, jsonify, request
 from sqlalchemy import func
 
+from models import Recargar
 from database import db
 from models import Transaccion, Usuario, Cartera, Tarjeta, TarjetaUsuario
 from services import (
@@ -52,7 +53,7 @@ def index():
         db.session.query(
             func.round(
                 func.sum(Transaccion.cantidad), 2
-            )  # Redondeo a 2 decimales en SQL
+            )  
         )
         .filter(
             Transaccion.id_cartera_enviado == usuario_actual.cartera.id,
@@ -114,13 +115,11 @@ def transferencias():
     error_transferencia = ""
     hoy = datetime.now()
 
-    # --- GASTOS MENSUALES ---
-    # Suma las transacciones ENVIADAS por el usuario en el mes y año actual
     gastos_mensuales = (
         db.session.query(
             func.round(
                 func.sum(Transaccion.cantidad), 2
-            )  # Redondeo a 2 decimales en SQL
+            )  
         )
         .filter(
             Transaccion.id_cartera_enviado == usuario_actual.cartera.id,
@@ -131,8 +130,6 @@ def transferencias():
         or 0.0
     )
 
-    # Obtener el nombre del mes actual en español (ej. "enero")
-    # %B formatea el nombre completo del mes, y .capitalize() pone la primera en mayúscula
     mes_actual = hoy.strftime("%B").capitalize()
     mes_actual = traducir_mes(mes_actual)
 
@@ -218,7 +215,6 @@ def ingresar_dinero():
                 else:
                     usuario_actual.cartera.cantidad += cantidad
 
-                    # Registrar la transacción
                     transaccion = Transaccion(
                         cantidad=float(cantidad),
                         id_cartera_enviado=usuario_actual.cartera.id,
@@ -264,13 +260,13 @@ def ingresar_dinero():
                         usuario_actual.cartera.cantidad -= cantidad
                         tarjeta.saldo += cantidad
 
-                        transaccion = Transaccion(
-                            cantidad=float(cantidad),
-                            id_cartera_enviado=usuario_actual.cartera.id,
-                            id_cartera_recibido=usuario_actual.cartera.id,
+                        recarga = Recargar(
+                            id_cartera=usuario_actual.cartera.id,
+                            id_tarjeta=tarjeta.id,
+                            cantidad=cantidad
                         )
 
-                        db.session.add(transaccion)
+                        db.session.add(recarga)
                         db.session.commit()
 
                         error_tarjeta = (
