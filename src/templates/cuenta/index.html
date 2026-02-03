@@ -17,7 +17,7 @@
     <h6 class="m-0 font-weight-bold text-primary">Resumen de cuenta</h6>
   </div>
   <div class="card-body">
-    <p>Hola, {{ usuario.nombre }}, este es el resumen de tus finanzas.</p>
+    <p>Hola, {{ usuario.nombre }} {{ usuario.apellidos }}, este es el resumen de tus finanzas.</p>
     <p class="mb-0">
       Gestiona tu saldo en <strong>VirtualCoin</strong>, consulta tus últimos
       movimientos o recarga tu cuenta al instante con tarjeta o transferencia.
@@ -37,7 +37,7 @@
               Saldo actual
             </div>
             <div class="h5 mb-0 font-weight-bold text-gray-800">
-              {{usuario.cartera.cantidad}} €
+              {{usuario.cartera.cantidad}} VTC
             </div>
           </div>
           <div class="col-auto">
@@ -59,7 +59,7 @@
             </div>
             <div class="h5 mb-0 font-weight-bold text-gray-800">
               <!-- IFO: QUE SAQUE DE LA BASE DE DATOS LOS INGRESOS DEL DIA EN EL QUE ESTAMOS -->
-              {{gastos_mensuales}} €
+              {{gastos_mensuales}} VTC
             </div>
           </div>
           <div class="col-auto">

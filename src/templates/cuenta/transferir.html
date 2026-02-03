@@ -1,9 +1,10 @@
 {% extends "cuenta/sidebar.html" %}
 
 {% block acount_content %}
+
 <!-- Cabecera de página -->
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
-  <h1 class="h3 mb-0 text-gray-800">Análisis de Datos</h1>
+  <h1 class="h3 mb-0 text-gray-800">Transferir VirtualCoin</h1>
   <a href="#" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
     <i class="fas fa-download fa-sm text-white-50"></i> Generar reporte
   </a>
@@ -15,42 +16,47 @@
     <h6 class="m-0 font-weight-bold text-primary">Resumen de cuenta</h6>
   </div>
   <div class="card-body">
-    <p>Hola, {{ usuario.nombre }}, aqui puedes transferir VirtualCoin a otros usuarios.</p>
-    <p class="mb-0">
-      Transfiere <strong> VirtualCoin </strong>, a cualquier usuario existente. 
-      RECUERDA, tienes que tener saldo suficiente.
-    </p>
+    <p>Envía tus **créditos virtuales** a otro usuario.</p>
   </div>
 </div>
 
 <!-- Nueva fila: Formulario a la izquierda, tarjetas a la derecha -->
 <div class="row">
-  <!-- Formulario Transfiere tu dinero -->
+  <!-- Formulario Enviar VirtualCoin -->
   <div class="col-xl-8 col-lg-7 mb-4 ">
     <div class="card shadow mb-4">
       <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-        <h6 class="m-0 font-weight-bold text-primary">Transfiere tu dinero</h6>
+        <h6 class="m-0 font-weight-bold text-primary">Enviar VirtualCoin</h6>
       </div>
       <div class="card-body">
         <div class="row">
-          <form class="row col-12" method="post">
+          <!-- Modificamos el formulario para usar JS para el modal -->
+          <form class="row col-12" id="transferForm" method="post" action="{{ url_for('main.transferencias') }}">
             <div class="col-4 mb-2">
-              <input class="form-control" type="text" name="usu_transferir" placeholder="Usuario">
+              <input class="form-control" type="text" id="usu_transferir" name="usu_transferir"
+                placeholder="Usuario Destino" required>
             </div>
             <div class="col-4 mb-2">
-              <input class="form-control" type="number" name="cantidad_transferir" placeholder="Cantidad">
+              <input class="form-control" type="number" step="0.01" min="0.01" id="cantidad_transferir"
+                name="cantidad_transferir" placeholder="Importe VTC" required>
             </div>
             <div class="col-4 mb-2">
-              <input class="btn btn-primary w-100" type="submit" value="Transferir">
+              <!-- Botón que abre el modal -->
+              <button type="button" class="btn btn-primary w-100" onclick="prepareTransferModal()">
+                Confirmar Envío
+              </button>
             </div>
           </form>
           <div class="col-12">
+            <!-- Mensajes de error/éxito de Flask -->
+            {% if error_transferencia %}
             {% if "éxito" in error_transferencia.lower() %}
-                <p class="text-success">{{ error_transferencia }}</p>
+            <p class="text-success">{{ error_transferencia }}</p>
             {% else %}
-                <p class="text-danger">{{ error_transferencia }}</p>
+            <p class="text-danger">{{ error_transferencia }}</p>
             {% endif %}
-        </div>
+            {% endif %}
+          </div>
         </div>
         <canvas id="myAreaChart"></canvas>
       </div>
@@ -65,14 +71,14 @@
         <div class="row no-gutters align-items-center">
           <div class="col mr-2">
             <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-              Saldo actual
+              Saldo disponible
             </div>
             <div class="h5 mb-0 font-weight-bold text-gray-800">
-              {{usuario.cartera.cantidad}} €
+              {{usuario.cartera.cantidad}} VTC
             </div>
           </div>
           <div class="col-auto">
-            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+            <i class="fas fa-coins fa-2x text-gray-300"></i> <!-- Cambiado a fas fa-coins -->
           </div>
         </div>
       </div>
@@ -87,39 +93,96 @@
               Gastos de {{mes_actual}}
             </div>
             <div class="h5 mb-0 font-weight-bold text-gray-800">
-              {{gastos_mensuales}} €
+              {{gastos_mensuales}} VTC
             </div>
           </div>
           <div class="col-auto">
-            <i class="fas fa-exclamation-circle fa-2x text-gray-300"></i>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Solicitudes pendientes -->
-    <div class="card border-left-warning shadow mb-4 py-2">
-      <div class="card-body">
-        <div class="row no-gutters align-items-center">
-          <div class="col mr-2">
-            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-              Solicitudes pendientes
-            </div>
-            <div class="h5 mb-0 font-weight-bold text-gray-800">
-              18
-            </div>
-          </div>
-          <div class="col-auto">
-            <i class="fas fa-comments fa-2x text-gray-300"></i>
+            <i class="fas fa-euro-sign fa-2x text-gray-300"></i> <!-- Cambiado a fas fa-euro-sign -->
           </div>
         </div>
       </div>
     </div>
   </div>
 </div>
+
+<!-- Modal de Confirmación -->
+<div class="modal fade" id="transferModal" tabindex="-1" role="dialog" aria-labelledby="transferModalLabel"
+  aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="transferModalLabel">Confirmar Transferencia</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>Por favor, revisa los detalles de tu envío:</p>
+        <ul class="list-group mb-3">
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            Usuario Destino:
+            <strong id="modal-usuario"></strong>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            Importe (VTC):
+            <strong id="modal-importe"></strong>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            Comisión:
+            <strong>0.00 VTC</strong> <!-- Asumimos 0 comisión por simplicidad -->
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center list-group-item-info">
+            Total a Enviar:
+            <strong id="modal-total"></strong>
+          </li>
+        </ul>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+        <!-- Botón que finalmente envía el formulario original -->
+        <button type="button" class="btn btn-primary" onclick="submitTransferForm()">
+          Confirmar y Enviar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
+<!-- Fin del bloque acount_content -->
+
 
 {% block scripts_block %}
+<!-- Incluye jQuery y Bootstrap JS si tu plantilla base no lo hace. -->
+<!-- Quité los comentarios largos para limpiar el código -->
+<!-- <script src="https://code.jquery.com"></script> -->
+<!-- <script src="https://cdn.jsdelivr.net"></script> -->
+
+<script>
+  function prepareTransferModal() {
+    const usuario = document.getElementById('usu_transferir').value;
+    const cantidad = document.getElementById('cantidad_transferir').value;
+
+    if (!usuario || !cantidad || parseFloat(cantidad) <= 0) {
+      alert("Por favor, introduce un usuario válido y un importe mayor que cero.");
+      return;
+    }
+
+    document.getElementById('modal-usuario').innerText = usuario;
+    document.getElementById('modal-importe').innerText = cantidad;
+    document.getElementById('modal-total').innerText = cantidad;
+
+    // Mostrar el modal (asume que jQuery o el JS de Bootstrap está cargado)
+    $('#transferModal').modal('show');
+  }
+
+  function submitTransferForm() {
+    $('#transferModal').modal('hide');
+    document.getElementById('transferForm').submit();
+  }
+</script>
+
+<!-- Scripts originales del template -->
 <script src="{{ url_for('static', filename='js/demo/chart-area-demo.js') }}"></script>
 <script src="{{ url_for('static', filename='js/demo/chart-pie-demo.js') }}"></script>
 {% endblock %}

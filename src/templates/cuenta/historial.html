@@ -2,12 +2,32 @@
 
 {% block acount_content %}
 
-<h1 class="h3 mb-2 text-gray-800">Historial de Transacciones</h1>
-<p class="mb-4">Aquí puedes ver todas tus transacciones realizadas y recibidas.</p>
 
+<!-- Cabecera de página -->
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Historial de Transacciones</h1>
+    <a href="#" class="d-none d-sm-inline-block btn btn-sm btn-primary shadow-sm">
+        <i class="fas fa-download fa-sm text-white-50"></i> Generar reporte
+    </a>
+</div>
+
+<!-- Resumen -->
 <div class="card shadow mb-4">
     <div class="card-header py-3">
-        <h6 class="m-0 font-weight-bold text-primary">Historial</h6>
+        <h6 class="m-0 font-weight-bold text-primary">Resumen de cuenta</h6>
+    </div>
+    <div class="card-body">
+        <p>
+            Aquí puedes ver todas tus transacciones realizadas y recibidas, con un resumen visual rápido.
+        </p>
+    </div>
+</div>
+
+
+<!-- Tabla de Historial Detallado -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Detalle de Movimientos</h6>
     </div>
     <div class="card-body">
         <div class="table-responsive">
@@ -16,7 +36,7 @@
                     <tr>
                         <th>Fecha</th>
                         <th>Tipo</th>
-                        <th>Usuario</th>
+                        <th>Usuario/Ref.</th>
                         <th>Cantidad</th>
                     </tr>
                 </thead>
@@ -24,9 +44,36 @@
                     {% for t in historial %}
                     <tr>
                         <td>{{ t.fecha }}</td>
-                        <td>{{ t.tipo }}</td>
+                        <td>
+                            <!-- Usamos badges de Bootstrap para dar color según el tipo -->
+                            {% if t.tipo.lower() == 'entrada' or t.tipo.lower() == 'ingreso' or t.tipo.lower() ==
+                            'recarga' %}
+                            <span class="badge badge-success">{{ t.tipo }}</span>
+                            {% elif t.tipo.lower() == 'salida' or t.tipo.lower() == 'retiro' or t.tipo.lower() ==
+                            'gasto' %}
+                            <span class="badge badge-danger">{{ t.tipo }}</span>
+                            {% elif t.tipo.lower() == 'transferencia' or t.tipo.lower() == 'envio' %}
+                            <span class="badge badge-info">{{ t.tipo }}</span>
+                            {% else %}
+                            <span class="badge badge-secondary">{{ t.tipo }}</span>
+                            {% endif %}
+                        </td>
                         <td>{{ t.usuario }}</td>
-                        <td>{{ t.cantidad }}</td>
+                        <!-- Coloreamos la cantidad según si es entrada (+) o salida (-) -->
+                        {% if t.tipo.lower() == 'entrada' or t.tipo.lower() == 'ingreso' or t.tipo.lower() == 'recarga'
+                        %}
+                        <td class="text-success font-weight-bold">+ {{ t.cantidad }} VTC</td>
+                        {% else %}
+                        <td class="text-danger font-weight-bold">- {{ t.cantidad }} VTC</td>
+                        {% endif %}
+                    </tr>
+                    {% else %}
+                    <!-- Este bloque se muestra si 'historial' está vacío -->
+                    <tr>
+                        <td colspan="4" class="text-center py-4">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            Aún no tienes movimientos registrados en tu historial.
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -38,6 +85,11 @@
 {% endblock %}
 
 {% block scripts_block %}
+<!-- Asumiendo que usas FontAwesome para los iconos (fas fa-...) -->
 <script src="{{ url_for('static', filename='js/demo/chart-area-demo.js') }}"></script>
 <script src="{{ url_for('static', filename='js/demo/chart-pie-demo.js') }}"></script>
+<!-- Opcional: Script para DataTables si quieres paginación y búsqueda -->
+<!-- <script src="ruta/a/jquery.dataTables.min.js"></script> -->
+<!-- <script src="ruta/a/dataTables.bootstrap4.min.js"></script> -->
+<!-- <script src="ruta/a/demo/datatables-demo.js"></script> -->
 {% endblock %}
