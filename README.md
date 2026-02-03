@@ -1,63 +1,127 @@
-<<<<<<< HEAD
+# Sistema de Gestión de Carteras y Tarjetas
 
-IMPORTANTE
+Python | Flask | SQLAlchemy ORM | 2026
 
-Para ejecutar este programa necesitas lo siguiente
-    -Tener Python instalado
-    -Tener flask instalado (puedes usar el comando python -m pip install flask para instalarlo)
-    -Tener instalado flask-sqlalchemy (puedes usar el comando python -m pip install flask-sqlalchemy para instalarlo)
-# 💳 Sistema de Gestión de Carteras y Tarjetas (SQLAlchemy 2026)
+Sistema modular y robusto para la gestión de usuarios, carteras digitales, tarjetas de débito y transacciones financieras.
 
-Este proyecto implementa una arquitectura modular y robusta para la gestión de usuarios, carteras digitales, tarjetas de débito y transacciones financieras, utilizando **Python** y **SQLAlchemy ORM**.
+---
 
-## 🏗️ Arquitectura del Proyecto
+## Instalación y Ejecución
 
-El sistema sigue una estructura profesional de capas para separar la configuración, los datos y la lógica:
-
-*   **`database.py`**: Configura el motor de SQLAlchemy, gestiona la fábrica de sesiones y activa el soporte de claves foráneas para SQLite.
-*   **`models.py`**: Define el esquema de la base de datos (tablas, columnas y relaciones) mediante clases de Python.
-*   **`services.py`**: Contiene la lógica de negocio (registro de usuarios, recargas de saldo, transferencias entre carteras).
-*   **`main.py`**: Punto de entrada para ejecutar la aplicación y realizar pruebas de flujo.
-*   **`/data`**: Carpeta donde se aloja el archivo `base_de_datos.db` de forma persistente.
-
-## 🗄️ Modelo de Datos
-
-El diseño incluye integridad referencial y borrado en cascada:
-
-1.  **Usuarios**: Almacena DNI, nombre, apellidos, credenciales y correo.
-2.  **Carteras**: Relación 1:1 con Usuario. Gestiona el saldo acumulado.
-3.  **Tarjetas**: Relación 1:N con Usuario. Permite vincular múltiples métodos de pago.
-4.  **Recargas**: Registro de ingresos desde una tarjeta a la cartera.
-5.  **Transacciones**: Registro de envíos de dinero entre carteras de diferentes usuarios.
-
-## 🚀 Funcionalidades Implementadas
-
-*   ✅ **Registro Atómico**: Creación de usuario y cartera en una única transacción (si uno falla, el otro no se crea).
-*   ✅ **Gestión Multi-Tarjeta**: Capacidad para que un usuario registre múltiples tarjetas de débito.
-*   ✅ **Lógica de Saldo**: Las recargas y transferencias actualizan automáticamente el balance real de las carteras.
-*   ✅ **Validación de Fondos**: El sistema impide transferencias si el saldo de la cartera de origen es insuficiente.
-*   ✅ **Seguridad SQLite**: Activación forzada de `PRAGMA foreign_keys` para garantizar la integridad de las relaciones.
-
-## 🛠️ Requisitos e Instalación
-
-1.  **Clonar o descargar** los archivos en una carpeta.
-2.  **Instalar SQLAlchemy** (Versión 2.0+ recomendada en 2026):
+1. Clonar o descargar el proyecto:
     ```bash
-    pip install sqlalchemy
+    git clone <repo-url>
+    cd proyecto
     ```
-3.  **Ejecutar**:
+
+2. Instalar dependencias:
+    ```bash
+    python -m pip install flask flask-sqlalchemy werkzeug
+    ```
+
+3. Ejecutar la aplicación:
     ```bash
     python main.py
     ```
-    *Nota: La base de datos y las carpetas necesarias se crearán automáticamente al iniciar.*
 
-## 🔒 Consideraciones de Seguridad
-*   **Contraseñas**: El sistema está diseñado para recibir hashes de contraseñas. **No** se debe almacenar texto plano en producción.
-*   **Rollbacks**: Todas las operaciones de escritura están protegidas con bloques `try-except` para revertir cambios en caso de error.
+> Nota: La base de datos y las carpetas necesarias se crean automáticamente al iniciar.
 
 ---
-*Proyecto desarrollado con estándares de persistencia de datos 2026.*
-=======
-# python.proyecto
-Proyecto de fin de curso
->>>>>>> 656cb965ce586c81152e7b0f34dd8c6b4ad940fd
+
+## Descripción del Proyecto
+
+Este proyecto implementa un sistema de gestión financiera personal con las siguientes capacidades:
+
+- Registro de usuarios con carteras asociadas automáticamente.
+- Gestión de múltiples tarjetas de débito vinculadas al usuario.
+- Recargas de dinero desde tarjetas a la cartera personal.
+- Transferencias de dinero entre carteras de distintos usuarios.
+- Compartición de tarjetas entre usuarios con control de permisos.
+- Actualización de información de cuenta: correo electrónico y contraseña.
+- Registro histórico de transacciones y recargas.
+
+La arquitectura modular permite separar la **configuración**, el **modelo de datos**, la **lógica de negocio** y las **rutas/plantillas**, siguiendo buenas prácticas de desarrollo limpio y escalable.
+
+---
+
+## Modelo de Datos
+
+El sistema incluye:
+
+1. **Usuarios**: Información personal, credenciales y correo electrónico.
+2. **Carteras**: Relación 1:1 con usuario, almacena el saldo actual.
+3. **Tarjetas**: Relación N:M con usuario, con número, caducidad, CVC y saldo propio.
+4. **Recargas**: Registro de ingresos desde tarjetas a carteras.
+5. **Transacciones**: Historial de transferencias entre carteras de usuarios.
+6. **TarjetaUsuario**: Tabla intermedia que gestiona la relación N:M entre usuarios y tarjetas, permitiendo compartir tarjetas.
+
+Relaciones clave:
+
+- Usuario ↔ Cartera: 1:1
+- Usuario ↔ Tarjetas: N:M (tabla `TarjetaUsuario`)
+
+Se asegura integridad referencial y borrado en cascada en SQLite mediante `PRAGMA foreign_keys`.
+
+---
+
+## Funcionalidades Implementadas
+
+### Gestión de Cuenta
+- Registro de usuario y cartera atómico.
+- Actualización de correo electrónico con verificación de duplicados.
+- Actualización de contraseña con validación de contraseña actual.
+
+### Tarjetas
+- Añadir, eliminar y listar múltiples tarjetas de débito.
+- Compartir tarjetas con otros usuarios de forma segura.
+- Las tarjetas compartidas se gestionan mediante la tabla intermedia `TarjetaUsuario`.
+
+### Carteras
+- Ingreso de dinero desde tarjetas vinculadas.
+- Validación de fondos insuficientes para transferencias.
+- Actualización automática de saldo tras recargas o transferencias.
+
+### Transacciones
+- Registro completo de recargas y transferencias entre usuarios.
+- Posibilidad de consultar historial completo por usuario.
+
+### Seguridad
+- Contraseñas almacenadas como hashes (`generate_password_hash`).
+- Bloques `try-except` en operaciones de escritura para rollback en caso de error.
+- Integridad referencial reforzada en SQLite (`PRAGMA foreign_keys`).
+
+---
+
+## Requisitos del Sistema
+
+- Python 3.10+
+- Flask 2.x
+- Flask-SQLAlchemy 3.x
+- SQLAlchemy 2.0+
+- Werkzeug (para hashing de contraseñas)
+
+---
+
+## Buenas Prácticas Implementadas
+
+- Código limpio, modular y siguiendo PEP8.
+- Uso de docstrings en todas las funciones para facilitar mantenimiento.
+- Validaciones y manejo de errores consistentes en todas las operaciones.
+- Arquitectura preparada para escalabilidad y nuevas funcionalidades.
+
+---
+
+## Futuras Mejoras
+
+- Soporte para múltiples monedas y conversión automática.
+- Integración con APIs de pagos externos (Stripe, PayPal).
+- Dashboard interactivo de saldo y transacciones con gráficos.
+- Autenticación avanzada con JWT o OAuth.
+- Funcionalidades de notificaciones en tiempo real para movimientos de saldo.
+
+---
+
+## Licencia
+
+Proyecto de fin de curso. Uso educativo y demostrativo.
+
