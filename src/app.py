@@ -1,52 +1,70 @@
 import os
+import unittest
 from flask import Flask
-from routes.config import config_bp  # Importa tu nuevo archivo
-from routes.main import main_bp  # Importa tu nuevo archivo
-from routes.auth import auth_bp  # Importa tu nuevo archivo
-
-from sqlalchemy import func
 from database import db
-from datetime import datetime
+from routes.config import config_bp
+from routes.main import main_bp
+from routes.auth import auth_bp
 from services import esta_autenticado, obtener_usuario_actual
 
 
-app = Flask(__name__)
-app.secret_key = "dw2"  # Necesaria para session y flash
+def create_app(testing=False):
+    app = Flask(__name__)
+    app.secret_key = "dw2"
 
-# --- CONFIGURACIÓN DE LA BASE DE DATOS ---
-# Asegúrate de tener una URI configurada, de lo contrario dará error
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
-    "DATABASE_URL", "sqlite:///proyecto.db"
-)
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    # Configuración dinámica
+    if testing:
+        app.config["SQLALCHEMY_DATABASE_URI"] = (
+            "sqlite:///:memory:"  # Base de datos volátil para tests
+        )
+        app.config["TESTING"] = True
+    else:
+        app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
+            "DATABASE_URL", "sqlite:///proyecto.db"
+        )
 
-# Inicializar la extensión con la app
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+    # Extensiones y Blueprints
+    db.init_app(app)
+    app.register_blueprint(config_bp)
+    app.register_blueprint(main_bp)
+    app.register_blueprint(auth_bp)
+
+    with app.app_context():
+        db.create_all()
+
+    @app.context_processor
+    def inject_user():
+        return dict(usuario=obtener_usuario_actual(), autenticado=esta_autenticado())
+
+    return app
 
 
-db.init_app(app)
-app.register_blueprint(config_bp)
-app.register_blueprint(main_bp)
-app.register_blueprint(auth_bp)
-
-# --- SOLUCIÓN AL ERROR: Crear tablas dentro del contexto de la app ---
-
-
-with app.app_context():
-    # Esto ahora funcionará porque tiene el contexto de la aplicación activo
-    db.create_all()
-
-
-@app.context_processor
-def inject_user():
-    # Esto hace que 'usuario' y 'autenticado' funcionen en CUALQUIER HTML
-    # sin tener que ponerlos en el return render_template(...)
-    return dict(
-        usuario=obtener_usuario_actual(),
-        autenticado=esta_autenticado(),
-        # hoy=datetime.now(),
-    )
-
+# Instancia global para que el servidor web la encuentre siempre
+app = create_app()
 
 if __name__ == "__main__":
-    app.run(debug=True)
-    print(app.url_map)
+    # --- BLOQUE DE TESTEO FUNCIONAL ---
+    print("Ejecutando pruebas funcionales antes de iniciar...")
+
+    # Definimos una clase de test rápida dentro del main para validar rutas críticas
+    class ProyectoTest(unittest.TestCase):
+        def setUp(self):
+            self.app_test = create_app(testing=True)
+            self.client = self.app_test.test_client()
+
+        def test_home_status(self):
+            # Cambia '/' por una ruta que exista en tu main_bp
+            response = self.client.get("/")
+            self.assertIn(response.status_code, [200, 302])
+
+    # Ejecutar tests
+    suite = unittest.TestLoader().loadTestsFromTestCase(ProyectoTest)
+    resultado = unittest.TextTestRunner(verbosity=1).run(suite)
+
+    if resultado.wasSuccessful():
+        print("Tests pasados. Iniciando servidor en http://127.0.0.1:5000")
+        app.run(debug=True)
+    else:
+        print("Tests fallidos. Revisa tu lógica antes de iniciar.")

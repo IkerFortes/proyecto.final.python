@@ -49,7 +49,11 @@ def index():
     usuario_actual = obtener_usuario_actual()
 
     gastos_mensuales = (
-        db.session.query(func.sum(Transaccion.cantidad))
+        db.session.query(
+            func.round(
+                func.sum(Transaccion.cantidad), 2
+            )  # Redondeo a 2 decimales en SQL
+        )
         .filter(
             Transaccion.id_cartera_enviado == usuario_actual.cartera.id,
             func.extract("month", Transaccion.fecha) == hoy.month,
@@ -108,6 +112,29 @@ def transferencias():
         return redirect(url_for("auth.login"))
 
     error_transferencia = ""
+    hoy = datetime.now()
+
+    # --- GASTOS MENSUALES ---
+    # Suma las transacciones ENVIADAS por el usuario en el mes y año actual
+    gastos_mensuales = (
+        db.session.query(
+            func.round(
+                func.sum(Transaccion.cantidad), 2
+            )  # Redondeo a 2 decimales en SQL
+        )
+        .filter(
+            Transaccion.id_cartera_enviado == usuario_actual.cartera.id,
+            func.extract("month", Transaccion.fecha) == hoy.month,
+            func.extract("year", Transaccion.fecha) == hoy.year,
+        )
+        .scalar()
+        or 0.0
+    )
+
+    # Obtener el nombre del mes actual en español (ej. "enero")
+    # %B formatea el nombre completo del mes, y .capitalize() pone la primera en mayúscula
+    mes_actual = hoy.strftime("%B").capitalize()
+    mes_actual = traducir_mes(mes_actual)
 
     if request.method == "POST":
         nombre_destino = request.form.get("usu_transferir")
@@ -138,7 +165,7 @@ def transferencias():
                 transaccion = Transaccion(
                     cantidad=float(cantidad),
                     id_cartera_enviado=usuario_actual.cartera.id,
-                    id_cartera_recibido=usuario_destino.cartera.id
+                    id_cartera_recibido=usuario_destino.cartera.id,
                 )
 
                 db.session.add(transaccion)
@@ -148,10 +175,13 @@ def transferencias():
     return render_template(
         "cuenta/transferir.html",
         usuario=usuario_actual,
+        mes_actual=mes_actual,
+        gastos_mensuales=gastos_mensuales,
         error_transferencia=error_transferencia,
     )
 
 
+# ingresar
 # =================================== INGRESAR DINERO ================================= #
 
 
@@ -217,11 +247,15 @@ def ingresar_dinero():
                 elif cantidad > usuario_actual.cartera.cantidad:
                     error_tarjeta = "No tienes suficiente dinero en tu cartera"
                 else:
-                    tarjeta = db.session.query(Tarjeta).join(TarjetaUsuario)\
+                    tarjeta = (
+                        db.session.query(Tarjeta)
+                        .join(TarjetaUsuario)
                         .filter(
                             Tarjeta.id == int(id_tarjeta),
-                            TarjetaUsuario.id_usuario == usuario_actual.id
-                        ).first()
+                            TarjetaUsuario.id_usuario == usuario_actual.id,
+                        )
+                        .first()
+                    )
 
                     if not tarjeta:
                         error_tarjeta = "Tarjeta no encontrada o no es tuya"
@@ -233,7 +267,7 @@ def ingresar_dinero():
                         transaccion = Transaccion(
                             cantidad=float(cantidad),
                             id_cartera_enviado=usuario_actual.cartera.id,
-                            id_cartera_recibido=usuario_actual.cartera.id
+                            id_cartera_recibido=usuario_actual.cartera.id,
                         )
 
                         db.session.add(transaccion)
@@ -254,12 +288,11 @@ def ingresar_dinero():
         usuario=usuario_actual,
         tarjetas=tarjetas,
         error_transferencia=error_transferencia,
-        error_tarjeta=error_tarjeta
+        error_tarjeta=error_tarjeta,
     )
 
 
 # =================================== HISTORIAL ================================= #
-
 
 @main_bp.route("/historial")
 def historial():
@@ -292,8 +325,11 @@ def historial():
     historial_data = []
     for t in transacciones:
         tipo = "Enviado" if t.id_cartera_enviado == cartera_id else "Recibido"
-        otra_parte_id = t.id_cartera_recibido if tipo == "Enviado" else t.id_cartera_enviado
+        otra_parte_id = (
+            t.id_cartera_recibido if tipo == "Enviado" else t.id_cartera_enviado
+        )
 
+        # Buscar el nombre del usuario receptor/emisor
         otra_cartera = (
             db.session.query(Usuario)
             .join(Usuario.cartera)
@@ -316,8 +352,8 @@ def historial():
     )
 
 
+# Tarjetas de el usuario
 # =================================== MIS TARJETAS ================================= #
-
 
 @main_bp.route("/mis-tarjetas")
 def mis_tarjetas():
@@ -335,12 +371,14 @@ def mis_tarjetas():
     if not usuario_actual:
         return redirect(url_for("auth.login"))
 
+    # 🔹 IDs de tarjetas a las que tiene acceso este usuario
     ids_tarjetas = (
         db.session.query(TarjetaUsuario.id_tarjeta)
         .filter_by(id_usuario=usuario_actual.id)
         .distinct()
         .all()
     )
+
     ids_tarjetas = [id[0] for id in ids_tarjetas]
 
     tarjetas = []
@@ -364,4 +402,6 @@ def mis_tarjetas():
                 "propia": tarjeta.propietario_id == usuario_actual.id
             })
 
-    return render_template("cuenta/mis-tarjetas.html", usuario=usuario_actual, tarjetas=tarjetas)
+    return render_template(
+        "cuenta/mis-tarjetas.html", usuario=usuario_actual, tarjetas=tarjetas
+    )
