@@ -217,7 +217,7 @@ def ingresar_dinero():
 
                     transaccion = Transaccion(
                         cantidad=float(cantidad),
-                        id_cartera_enviado=usuario_actual.cartera.id,
+                        id_cartera_enviado=-1,
                         id_cartera_recibido=usuario_actual.cartera.id
                     )
 
